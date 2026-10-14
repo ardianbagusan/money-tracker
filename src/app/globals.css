@@ -443,3 +443,69 @@ button.row:hover, a.row:hover { background: rgba(40, 66, 118, 0.6); }
   .item-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 1fr) auto; border-bottom: 0; padding-bottom: 0; }
   .item-row .item-name { grid-column: auto; }
 }
+
+/* ---------- Life: add chooser, mood picker, workout inputs ---------- */
+.choose-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .choose-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.choose {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 14px; border-radius: var(--r-lg); border: 1px solid var(--stroke); background: rgba(8, 18, 38, 0.45); color: var(--text);
+}
+.choose:hover { background: rgba(40, 66, 118, 0.55); }
+.choose-ic { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: rgba(156, 200, 242, 0.14); color: var(--mist); }
+.choose-ic svg { width: 22px; height: 22px; }
+.choose strong { display: block; font-size: 15.5px; }
+.choose small { display: block; color: var(--muted); font-size: 13px; font-weight: 600; }
+.mood-pick { display: flex; justify-content: space-between; align-items: flex-end; gap: 4px; padding: 6px 0; }
+.mood-pick button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 2px 8px;
+  border-radius: 18px; border: 2px solid transparent; background: transparent; line-height: 1; transition: transform 0.15s var(--ease), background 0.15s;
+}
+.mood-pick button small { font-size: 12px; font-weight: 700; color: var(--muted); }
+.mood-pick button[aria-checked='true'] { border-color: var(--ring); background: rgba(255, 255, 255, 0.07); transform: translateY(-2px); }
+.mood-pick button[aria-checked='true'] small { color: var(--text); }
+.dur { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dur label { position: relative; }
+.dur input { padding-right: 44px; text-align: right; font-size: 20px; font-weight: 800; }
+.dur small { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 700; font-size: 13px; pointer-events: none; }
+.range { width: 100%; accent-color: var(--ember); height: 32px; }
+.mood-face { display: grid; place-items: center; border-radius: 999px; flex: none; }
+.tag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; background: rgba(156, 200, 242, 0.12); font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.note-text { white-space: pre-wrap; font-size: 15px; line-height: 1.55; margin: 8px 0 0; color: var(--text); }
+.section-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 6px; padding-bottom: 2px; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tabs a { flex: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; color: var(--muted); border: 1px solid var(--stroke); background: rgba(40, 66, 118, 0.35); }
+.section-tabs a[aria-current='page'] { background: var(--text); color: var(--ink); border-color: transparent; }
+@media (min-width: 960px) { .section-tabs { display: none; } }
+.hero.dark { color: var(--text); }
+.hero.dark::before { background: linear-gradient(100deg, rgba(9, 20, 42, 0.55), rgba(9, 20, 42, 0.12) 60%, transparent); }
+.hero.dark .hero-amount button, .hero.dark .mood-quick button { background: rgba(255,255,255,.14); }
+.hero.dark .quick { background: rgba(18, 34, 68, 0.72); color: var(--text); border-color: var(--stroke-strong); box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
+.hero.dark .quick input::placeholder { color: var(--faint); }
+.hero.dark .quick button { background: var(--ember); color: var(--ember-ink); }
+.mood-quick { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.mood-quick button { width: 52px; height: 52px; border-radius: 999px; border: 0; background: rgba(255,255,255,.45); font-size: 26px; display: grid; place-items: center; transition: transform .15s var(--ease); }
+.mood-quick button:hover { transform: translateY(-2px) scale(1.06); }
+.hero-mood { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.hero-mood .big-face { font-size: 54px; line-height: 1; }
+.hero-mood strong { display: block; font-size: 26px; letter-spacing: -0.02em; }
+.hero-mood span { font-size: 14px; font-weight: 600; opacity: .85; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal .dow { font-size: 12px; color: var(--faint); text-align: center; font-weight: 700; padding-bottom: 2px; }
+.cal button {
+  min-height: 74px; border-radius: 14px; padding: 6px; text-align: left; display: flex; flex-direction: column; gap: 3px; overflow: hidden;
+  border: 1px solid rgba(190, 212, 255, 0.08); background: rgba(8, 18, 38, 0.35); color: var(--text);
+}
+.cal button.out { opacity: 0.35; }
+.cal button.today .dnum { background: var(--ember); color: var(--ember-ink); }
+.cal button.sel { border-color: var(--mist); background: rgba(156, 200, 242, 0.14); }
+.cal .dnum { font-size: 13px; font-weight: 800; width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; }
+.cal .marks { display: flex; gap: 3px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.cal .mdot { width: 10px; height: 10px; border-radius: 999px; }
+.cal .evt { font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 6px; background: rgba(245, 176, 122, 0.22); color: #ffe2c9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+@media (max-width: 620px) { .cal button { min-height: 52px; padding: 4px; } .cal .evt { display: none; } .cal .evt-dot { display: inline-block; } }
+.evt-dot { display: none; width: 14px; height: 4px; border-radius: 2px; background: var(--text); }
+.pixels { display: grid; grid-template-columns: 26px repeat(31, minmax(0, 1fr)); gap: 2px; font-size: 10.5px; color: var(--faint); font-weight: 700; }
+.pixels i { aspect-ratio: 1; border-radius: 3px; background: rgba(156, 200, 242, 0.07); display: block; }
+.pixels i.none { background: transparent; }
+.hero-mood-btn { background: none; border: 0; padding: 0; color: inherit; text-align: left; display: block; }

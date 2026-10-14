@@ -1,3 +1,4 @@
+import { SectionTabs } from '@/components/AppShell';
 import { getBase, getTransactions } from '@/lib/data';
 import { filterFromParams } from '@/lib/filters';
 import { TxList } from '@/components/TxList';
@@ -20,6 +21,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
+      <SectionTabs section="money" />
       <div className="page-head">
         <div>
           <h1 className="page-title">Transactions</h1>

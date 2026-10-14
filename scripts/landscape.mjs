@@ -43,6 +43,57 @@ const PALETTES = {
     pine: '#13234A', pine2: '#1A2D58', grass: '#1E3360',
     birds: '#9AAED6', stars: 1,
   },
+  // Weather for the mood journal: 1 storm, 2 rain, 3 cloudy, 4 sunny, 5 radiant
+  storm: {
+    sky: ['#3B4A6B', '#56647F', '#7A849A'],
+    sun: '#C9CED9', sunGlow: '#8C97AD', sunY: 0.2, sunOp: 0,
+    cloud: '#4C5A78', cloud2: '#3A4766', clouds: 15, cloudScale: 1.5, cloudOp: 0.75,
+    far: '#6E7D9A', mid: '#55668A', near: '#3D4D70',
+    trees: ['#B58A70', '#C29A80', '#A27A63'],
+    lake: ['#7A849A', '#5B6A89', '#44537A'],
+    pine: '#28375A', pine2: '#32426A', grass: '#4A5A7E',
+    birds: '#3A4766', noBirds: 1, stars: 0, rain: 260, lightning: 1,
+  },
+  rain: {
+    sky: ['#6D82A6', '#8C9DBB', '#B3BED1'],
+    sun: '#DDE3EE', sunGlow: '#B9C4D8', sunY: 0.24, sunOp: 0,
+    cloud: '#8292B0', cloud2: '#6F80A1', clouds: 13, cloudScale: 1.3, cloudOp: 0.65,
+    far: '#93A4C3', mid: '#748AB0', near: '#566C98',
+    trees: ['#D89B74', '#E2AE8A', '#CD8D66'],
+    lake: ['#B3BED1', '#90A2C3', '#7288B1'],
+    pine: '#3C5584', pine2: '#4A6394', grass: '#6A80AC',
+    birds: '#4F6690', noBirds: 1, stars: 0, rain: 150,
+  },
+  cloudy: {
+    sky: ['#A7BAD6', '#C6D1E2', '#E6E2DC'],
+    sun: '#F6CFA6', sunGlow: '#F4E6D6', sunY: 0.26, sunOp: 0.3,
+    cloud: '#EEF1F6', cloud2: '#CBD5E4', clouds: 12, cloudScale: 1.25, cloudOp: 0.7,
+    far: '#B5C6DE', mid: '#91ADD3', near: '#6E8EC0',
+    trees: ['#EBA77A', '#F1BE97', '#E39868'],
+    lake: ['#DCE4EF', '#B4C8E2', '#93B0D8'],
+    pine: '#47689A', pine2: '#5779AE', grass: '#7A99C8',
+    birds: '#4F6690', stars: 0,
+  },
+  sunny: {
+    sky: ['#9FCBF0', '#C7E1F6', '#F1E5D6'],
+    sun: '#F8BB82', sunGlow: '#FDE3C6', sunY: 0.26,
+    cloud: '#FFFFFF', cloud2: '#DDEAF7',
+    far: '#C0D5EE', mid: '#97B8E0', near: '#6E92C6',
+    trees: ['#F2A26E', '#F6C091', '#EC8E5C'],
+    lake: ['#D9EAF8', '#AFCDEE', '#8DB3E2'],
+    pine: '#43669A', pine2: '#5779AE', grass: '#7A9ACB',
+    birds: '#4F6690', stars: 0,
+  },
+  radiant: {
+    sky: ['#7DBEF2', '#B5DBF7', '#FCE2C0'],
+    sun: '#F7A04F', sunGlow: '#FFE0B8', sunY: 0.24, glowScale: 4.6,
+    cloud: '#FFFFFF', cloud2: '#FBE9D8', clouds: 3,
+    far: '#BCD4EF', mid: '#90B5E2', near: '#6890C8',
+    trees: ['#F59A5C', '#F8B47E', '#F08443'],
+    lake: ['#FCE6CC', '#B3D3F2', '#8AB3E6'],
+    pine: '#3F659C', pine2: '#5378B0', grass: '#77A0D2',
+    birds: '#4F6690', stars: 0, rainbow: 1,
+  },
 };
 
 // Small seeded random so every render is the same picture.
@@ -93,11 +144,11 @@ export function landscapeSVG(variant = 'day', W = 1600, H = 640, opts = {}) {
   const sunR = Math.min(W, H) * 0.075;
 
   const clouds = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < (p.clouds ?? 7); i++) {
     const cx = r() * W;
-    const cy = H * (0.1 + r() * 0.28);
-    const s = 0.6 + r() * 0.9;
-    clouds.push(`<g opacity="${(0.45 + r() * 0.35).toFixed(2)}">
+    const cy = H * (0.06 + r() * 0.3);
+    const s = (0.6 + r() * 0.9) * (p.cloudScale ?? 1);
+    clouds.push(`<g opacity="${((p.cloudOp ?? 0.45) + r() * 0.3).toFixed(2)}">
       <ellipse cx="${cx}" cy="${cy}" rx="${150 * s}" ry="${34 * s}" fill="${i % 2 ? p.cloud2 : p.cloud}"/>
       <ellipse cx="${cx + 70 * s}" cy="${cy - 18 * s}" rx="${90 * s}" ry="${30 * s}" fill="${p.cloud}"/>
       <ellipse cx="${cx - 80 * s}" cy="${cy + 6 * s}" rx="${80 * s}" ry="${22 * s}" fill="${p.cloud}"/></g>`);
@@ -142,7 +193,7 @@ export function landscapeSVG(variant = 'day', W = 1600, H = 640, opts = {}) {
   }
 
   const birds = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < (p.noBirds ? 0 : 4); i++) {
     const x = W * (0.32 + r() * 0.3);
     const y = H * (0.18 + r() * 0.16);
     const s = 7 + r() * 7;
@@ -157,6 +208,23 @@ export function landscapeSVG(variant = 'day', W = 1600, H = 640, opts = {}) {
     const len = 30 + r() * 120;
     shimmer.push(`<path d="M ${(x - len / 2).toFixed(0)} ${y.toFixed(0)} h ${len.toFixed(0)}" stroke="${p.sunGlow}" stroke-width="${(2 + r() * 3).toFixed(1)}" stroke-linecap="round" opacity="${(0.35 + r() * 0.4).toFixed(2)}"/>`);
   }
+
+  // Rain streaks, a lightning fork for storms, a faint rainbow for great days
+  const rain = [];
+  for (let i = 0; i < (p.rain ?? 0); i++) {
+    const x = r() * (W + 200) - 100;
+    const y = r() * H;
+    const len = 18 + r() * 26;
+    rain.push(`<path d="M ${x.toFixed(0)} ${y.toFixed(0)} l ${(-len * 0.28).toFixed(0)} ${len.toFixed(0)}" stroke="#E6ECF6" stroke-width="${(1.2 + r() * 1.3).toFixed(1)}" stroke-linecap="round" opacity="${(0.25 + r() * 0.35).toFixed(2)}"/>`);
+  }
+  const bolt = p.lightning
+    ? `<g filter="url(#bleed)"><path d="M ${W * 0.62} ${H * 0.12} l -34 92 l 30 -6 l -46 118 l 22 -4 l -30 86" stroke="#FFF2C4" stroke-width="5" fill="none" stroke-linejoin="round" opacity="0.9"/>
+       <path d="M ${W * 0.62} ${H * 0.12} l -34 92 l 30 -6 l -46 118 l 22 -4 l -30 86" stroke="#FFF7DE" stroke-width="16" fill="none" opacity="0.18"/></g>`
+    : '';
+  const rainbow = p.rainbow
+    ? `<g filter="url(#wash)" opacity="0.42">${['#F2A0A0', '#F7C48A', '#F7E39A', '#A8DDB5', '#9CC8F2', '#B9A8EC']
+        .map((c, i) => `<path d="M ${W * 0.08} ${horizon} A ${W * 0.36 - i * 14} ${H * 0.62 - i * 14} 0 0 1 ${W * 0.8 - i * 28} ${horizon}" stroke="${c}" stroke-width="16" fill="none"/>`).join('')}</g>`
+    : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice">
   <defs>
@@ -208,8 +276,9 @@ export function landscapeSVG(variant = 'day', W = 1600, H = 640, opts = {}) {
 
   <rect width="${W}" height="${H}" fill="url(#sky)"/>
   ${stars.join('')}
-  <circle cx="${sunX}" cy="${sunY}" r="${sunR * 3.4}" fill="url(#glow)"/>
-  <g filter="url(#bleed)"><circle cx="${sunX}" cy="${sunY}" r="${sunR}" fill="${p.sun}" opacity="0.95"/></g>
+  ${rainbow}
+  <g opacity="${p.sunOp ?? 1}"><circle cx="${sunX}" cy="${sunY}" r="${sunR * (p.glowScale ?? 3.4)}" fill="url(#glow)"/>
+  <g filter="url(#bleed)"><circle cx="${sunX}" cy="${sunY}" r="${sunR}" fill="${p.sun}" opacity="0.95"/></g></g>
   <g filter="url(#wash)">${clouds.join('')}</g>
 
   <g filter="url(#wc)">
@@ -233,6 +302,8 @@ export function landscapeSVG(variant = 'day', W = 1600, H = 640, opts = {}) {
   <g filter="url(#wc)">${pinesL.join('')}${pinesR.join('')}</g>
   <g filter="url(#bleed)">${reeds.join('')}</g>
   <g filter="url(#bleed)">${birds.join('')}</g>
+  ${bolt}
+  <g filter="url(#bleed)">${rain.join('')}</g>
 
   <rect width="${W}" height="${H}" filter="url(#blotch)" style="mix-blend-mode:soft-light"/>
   <rect width="${W}" height="${H}" filter="url(#paper)" style="mix-blend-mode:multiply"/>

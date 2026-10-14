@@ -35,7 +35,7 @@ export function SettingsView({ categories, recurring, timezone }: { categories: 
       <div className="page-head">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-sub">Categories, repeating transactions and time zone</p>
+          <p className="page-sub">Categories, activities, repeats, alerts and time zone</p>
         </div>
       </div>
 

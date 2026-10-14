@@ -1,3 +1,4 @@
+import { SectionTabs } from '@/components/AppShell';
 import Link from 'next/link';
 import { getBase, getBudgets, getTransactions } from '@/lib/data';
 import { addDays, periodFor, shortDate } from '@/lib/dates';
@@ -25,6 +26,7 @@ export default async function Budgets() {
 
   return (
     <>
+      <SectionTabs section="money" />
       <div className="page-head">
         <div>
           <h1 className="page-title">Budgets</h1>

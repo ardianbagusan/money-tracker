@@ -1,3 +1,4 @@
+import { SectionTabs } from '@/components/AppShell';
 import Link from 'next/link';
 import { getBase, getTransactions, getYearByMonth } from '@/lib/data';
 import { addMonths, daysInMonth, monthName, ymd } from '@/lib/dates';
@@ -90,6 +91,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
 
   return (
     <>
+      <SectionTabs section="money" />
       <div className="page-head">
         <div>
           <h1 className="page-title">Reports</h1>

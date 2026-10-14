@@ -18,6 +18,12 @@ JOBS = [
     ("hero-night", "night", 1600, 640, {}),
     ("backdrop", "night", 1800, 1200, {"horizon": 0.62, "sunX": 0.78, "seed": 12}),
     ("login", "dusk", 1200, 1600, {"horizon": 0.6, "sunX": 0.6, "seed": 4}),
+    # Mood weather for the overview: 1 storm ... 5 radiant
+    ("mood-1", "storm", 1600, 640, {}),
+    ("mood-2", "rain", 1600, 640, {}),
+    ("mood-3", "cloudy", 1600, 640, {}),
+    ("mood-4", "sunny", 1600, 640, {}),
+    ("mood-5", "radiant", 1600, 640, {}),
 ]
 
 only = set(sys.argv[1:])

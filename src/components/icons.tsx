@@ -40,3 +40,9 @@ export const IEdit = (p: P) => (<svg {...base(p)}><path d="M14.5 5.5 18.5 9.5M4 
 export const IStar = (p: P) => (<svg {...base(p)}><path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.3L12 16l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6z" /></svg>);
 export const IArrowUp = (p: P) => (<svg {...base(p)}><path d="M12 19V5M6 11l6-6 6 6" /></svg>);
 export const ICalendar = (p: P) => (<svg {...base(p)}><rect x="4" y="5.5" width="16" height="15" rx="3" /><path d="M8 3.5v4M16 3.5v4M4 10h16" /></svg>);
+export const IBook = (p: P) => (<svg {...base(p)}><path d="M5 4.5h9.5a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z" /><path d="M5 17a3 3 0 0 1 3-3h9.5M9 8.5h5" /></svg>);
+export const IBell = (p: P) => (<svg {...base(p)}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2H4.5z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>);
+export const ISmile = (p: P) => (<svg {...base(p)}><circle cx="12" cy="12" r="8.5" /><path d="M8.5 14a4.2 4.2 0 0 0 7 0" /><circle cx="9.2" cy="10" r=".9" fill="currentColor" stroke="none" /><circle cx="14.8" cy="10" r=".9" fill="currentColor" stroke="none" /></svg>);
+export const IRun = (p: P) => (<svg {...base(p)}><circle cx="14.5" cy="4.8" r="1.8" /><path d="m7 21 3.2-5.2 3 2.2V13l-3-2.5 3.5-3 2.3 3.2H19M9.8 10.5 7.5 13" /></svg>);
+export const ITennis = (p: P) => (<svg {...base(p)}><circle cx="12" cy="12" r="8.5" /><path d="M5.5 6.5a9 9 0 0 1 0 11M18.5 6.5a9 9 0 0 0 0 11" /></svg>);
+export const IPulse = (p: P) => (<svg {...base(p)}><path d="M3 12h4l2.5-6 4 12 2.5-6H21" /></svg>);

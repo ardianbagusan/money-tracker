@@ -1,13 +1,20 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Category, TxType, Wallet } from '@/lib/types';
+import type { CalEvent, Category, JournalEntry, JournalTag, Sport, TxType, Wallet, Workout } from '@/lib/types';
 
 export type SheetRequest =
   | { kind: 'new'; type?: TxType; walletId?: number; title?: string }
-  | { kind: 'edit'; id: number };
+  | { kind: 'edit'; id: number }
+  | { kind: 'chooser' }
+  | { kind: 'journal'; entry?: JournalEntry; mood?: number; date?: string }
+  | { kind: 'workout'; sport: Sport; workout?: Workout; date?: string }
+  | { kind: 'event'; event?: CalEvent; date?: string };
 
 type Ctx = {
+  tags: JournalTag[];
+  tagById: Map<number, JournalTag>;
+  vapidPublic: string;
   categories: Category[];
   wallets: Wallet[];
   now: string;
@@ -29,7 +36,7 @@ export function useApp() {
   return c;
 }
 
-export function AppProvider({ categories, wallets, now, children }: { categories: Category[]; wallets: Wallet[]; now: string; children: ReactNode }) {
+export function AppProvider({ categories, wallets, now, tags, vapidPublic, children }: { categories: Category[]; wallets: Wallet[]; now: string; tags: JournalTag[]; vapidPublic: string; children: ReactNode }) {
   const [hidden, setHidden] = useState(false);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; bad?: boolean; id: number } | null>(null);
@@ -71,8 +78,16 @@ export function AppProvider({ categories, wallets, now, children }: { categories
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Register the service worker that shows reminder alerts (works once installed to the home screen).
+  useEffect(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }, []);
+
   const value = useMemo<Ctx>(
     () => ({
+      tags,
+      tagById: new Map(tags.map((t) => [t.id, t])),
+      vapidPublic,
       categories,
       wallets,
       now,
@@ -85,7 +100,7 @@ export function AppProvider({ categories, wallets, now, children }: { categories
       closeSheet: () => setSheet(null),
       toast,
     }),
-    [categories, wallets, now, hidden, toggleHidden, sheet, toast],
+    [tags, vapidPublic, categories, wallets, now, hidden, toggleHidden, sheet, toast],
   );
 
   return (

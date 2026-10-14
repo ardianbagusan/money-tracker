@@ -2,7 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { sql, ensureSchema, getSettings } from './db';
 import { advance, nowLocal } from './dates';
-import type { Category, Goal, Item, Recurring, Tx, Wallet } from './types';
+import type { CalEvent, Category, Goal, Item, JournalEntry, JournalTag, Recurring, Tx, Wallet, Workout } from './types';
 
 const TX_COLS = sql`t.id, t.type, t.amount, t.title, t.note, t.category_id, t.wallet_id, t.to_wallet_id,
   to_char(t.occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, t.source, t.recurring_id,
@@ -36,8 +36,9 @@ export const getBase = cache(async function getBase() {
   const settings = await getSettings();
   const now = nowLocal(settings.timezone);
   await runRecurring(now);
-  const [categories, wallets] = await Promise.all([
+  const [categories, tags, wallets] = await Promise.all([
     sql<Category[]>`select * from categories order by kind, sort, id`,
+    sql<JournalTag[]>`select id, name, emoji, sort, archived from journal_tags order by sort, id`,
     sql<Wallet[]>`select w.*, w.initial_balance + coalesce((
         select sum(case
           when t.type = 'income' and t.wallet_id = w.id then t.amount
@@ -49,7 +50,7 @@ export const getBase = cache(async function getBase() {
         from transactions t where t.wallet_id = w.id or t.to_wallet_id = w.id), 0)::bigint as balance
       from wallets w order by w.archived, w.sort, w.id`,
   ]);
-  return { settings, now, today: now.slice(0, 10), categories: [...categories], wallets: [...wallets] };
+  return { settings, now, today: now.slice(0, 10), categories: [...categories], wallets: [...wallets], tags: [...tags] };
 });
 
 export type TxFilter = {
@@ -131,4 +132,50 @@ export async function getYearByMonth(year: number) {
     inc[r.m - 1] = r.inc;
   }
   return { out, inc };
+}
+
+// ---------------- Journal ----------------
+const JOURNAL_COLS = sql`id, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, mood, energy, tag_ids, note`;
+
+export async function getJournal(from?: string, to?: string, limit = 2000): Promise<JournalEntry[]> {
+  await ensureSchema();
+  const rows = await sql<JournalEntry[]>`select ${JOURNAL_COLS} from journal_entries where true
+    ${from ? sql`and occurred_at >= ${from}::text::timestamp` : sql``}
+    ${to ? sql`and occurred_at < ${to}::text::timestamp` : sql``}
+    order by occurred_at desc, id desc limit ${limit}`;
+  return [...rows];
+}
+
+// ---------------- Sports ----------------
+const WORKOUT_COLS = sql`id, sport, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, duration_sec, distance_m, effort,
+  avg_hr, tennis_format, result, score, note`;
+
+export async function getWorkouts(from?: string, to?: string, sport?: string, limit = 2000): Promise<Workout[]> {
+  await ensureSchema();
+  const rows = await sql<Workout[]>`select ${WORKOUT_COLS} from workouts where true
+    ${from ? sql`and occurred_at >= ${from}::text::timestamp` : sql``}
+    ${to ? sql`and occurred_at < ${to}::text::timestamp` : sql``}
+    ${sport ? sql`and sport = ${sport}` : sql``}
+    order by occurred_at desc, id desc limit ${limit}`;
+  return [...rows];
+}
+
+// ---------------- Calendar ----------------
+export async function getEvents(): Promise<CalEvent[]> {
+  await ensureSchema();
+  const rows = await sql<CalEvent[]>`select id, title, note, to_char(start_at, 'YYYY-MM-DD"T"HH24:MI') as start_at, all_day, repeat, alert_minutes
+    from events order by start_at`;
+  return [...rows];
+}
+
+export async function getPushDeviceCount() {
+  const [{ n }] = await sql`select count(*)::int as n from push_subscriptions`;
+  return n as number;
+}
+
+/** Spending per day (expenses only) for linking money with mood. */
+export async function getDailySpending(from: string, to: string): Promise<Record<string, number>> {
+  const rows = await sql`select to_char(occurred_at, 'YYYY-MM-DD') as d, sum(amount)::bigint as s from transactions
+    where type = 'expense' and occurred_at >= ${from}::text::timestamp and occurred_at < ${to}::text::timestamp group by 1`;
+  return Object.fromEntries(rows.map((r) => [r.d, r.s]));
 }

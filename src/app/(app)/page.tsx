@@ -1,22 +1,39 @@
 import Link from 'next/link';
-import { getBase, getBudgets, getTransactions } from '@/lib/data';
-import { greeting, monthName, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
+import { getBase, getBudgets, getEvents, getJournal, getTransactions, getWorkouts } from '@/lib/data';
+import { addDays, dayLabel, greeting, monthName, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
+import { MOODS, moodOf } from '@/lib/mood';
+import { occurrences } from '@/lib/recur';
+import { fmtHours, km } from '@/lib/sport';
+import { OpenSheet } from '@/components/LifeBits';
 import { rpShort } from '@/lib/format';
 import { Money } from '@/components/Money';
 import { QuickAdd } from '@/components/QuickAdd';
 import { HideToggle } from '@/components/HideToggle';
 import { TxList } from '@/components/TxList';
-import { IChevR, IGear } from '@/components/icons';
+import { IBell, IChevR, IGear } from '@/components/icons';
 
 export default async function Overview() {
   const base = await getBase();
   const { today, now, categories, wallets } = base;
   const per = periodFor(today, base.settings.periodStart);
-  const [periodTx, recent, budgets] = await Promise.all([
+  const weekAgo = addDays(today, -6);
+  const [periodTx, recent, budgets, journal7, workouts7, events] = await Promise.all([
     getTransactions({ from: per.from, to: per.to, types: ['expense', 'income'] }),
     getTransactions({ limit: 6 }),
     getBudgets(),
+    getJournal(weekAgo, addDays(today, 1)),
+    getWorkouts(weekAgo, addDays(today, 1)),
+    getEvents(),
   ]);
+  const todayEntries = journal7.filter((e) => e.occurred_at.startsWith(today));
+  const todayMood = todayEntries.length ? todayEntries.reduce((s, e) => s + e.mood, 0) / todayEntries.length : 0;
+  const weekMood = journal7.length ? journal7.reduce((s, e) => s + e.mood, 0) / journal7.length : 0;
+  const runs7 = workouts7.filter((w) => w.sport === 'running');
+  const tennis7 = workouts7.filter((w) => w.sport === 'tennis');
+  const upcoming = events
+    .flatMap((ev) => occurrences(ev, `${now}`, `${addDays(today, 8)}T00:00`, 5).map((occ) => ({ ev, occ })))
+    .sort((a, b) => (a.occ < b.occ ? -1 : 1))
+    .slice(0, 4);
 
   const out = periodTx.filter((t) => t.type === 'expense');
   const spent = out.reduce((s, t) => s + t.amount, 0);
@@ -36,7 +53,9 @@ export default async function Overview() {
   const budgetSpent = out.filter((t) => t.category_id && budgets[t.category_id]).reduce((s, t) => s + t.amount, 0);
 
   const pod = partOfDay(now);
-  const night = pod === 'night';
+  // The sky follows today's mood once it's logged; before that, the time of day.
+  const heroImg = todayMood ? `/art/mood-${Math.round(todayMood)}.jpg` : `/art/hero-${pod}.jpg`;
+  const heroDark = todayMood ? Math.round(todayMood) <= 2 : pod === 'night';
   const pm = Number(per.from.slice(5, 7));
   const periodLabel = base.settings.periodStart === 1 ? `${monthName(pm, true)} spending` : `Spending since ${shortDate(per.from)}`;
   const todayLine =
@@ -54,17 +73,31 @@ export default async function Overview() {
         </span>
       </div>
 
-      <section className={`hero${night ? ' night' : ''}`} style={{ backgroundImage: `url(/art/hero-${pod}.jpg)`, marginTop: 12 }}>
+      <section className={`hero${heroDark ? ' dark' : ''}`} style={{ backgroundImage: `url(${heroImg})`, marginTop: 12 }}>
         <div className="hero-date">{weekday(today)}, {shortDate(today)}</div>
         <h1 className="hero-greet">{greeting(now)}.</h1>
-        <p className="hero-line">{todayLine}</p>
-        <div className="hero-amount">
-          <span className="big"><Money value={spent} /></span>
-          <HideToggle />
-        </div>
-        <div className="hero-caption">
-          {periodLabel}, day {per.dayIndex} of {per.totalDays}
-        </div>
+        {todayMood ? (
+          <OpenSheet req={{ kind: 'journal' }} className="hero-mood-btn" label="Add another journal entry">
+            <span className="hero-mood">
+              <span className="big-face" aria-hidden>{moodOf(todayMood).emoji}</span>
+              <span>
+                <strong>You feel {moodOf(todayMood).label.toLowerCase()} today</strong>
+                <span>{moodOf(todayMood).sky} skies. {todayEntries.length === 1 ? 'Tap to add another entry.' : `${todayEntries.length} entries today.`}</span>
+              </span>
+            </span>
+          </OpenSheet>
+        ) : (
+          <>
+            <p className="hero-line">How are you feeling today?</p>
+            <div className="mood-quick">
+              {MOODS.map((m) => (
+                <OpenSheet key={m.v} req={{ kind: 'journal', mood: m.v }} className="" label={`Log mood: ${m.label}`}>
+                  <span aria-hidden>{m.emoji}</span>
+                </OpenSheet>
+              ))}
+            </div>
+          </>
+        )}
         <QuickAdd />
       </section>
 
@@ -73,11 +106,16 @@ export default async function Overview() {
           <section className="glass card">
             <div className="card-head">
               <div>
-                <h2 className="card-title">Where it went</h2>
-                <p className="card-sub">This period, by category</p>
+                <h2 className="card-title">Summary</h2>
+                <p className="card-sub">{periodLabel}, day {per.dayIndex} of {per.totalDays}. {todayLine}</p>
               </div>
-              <Link className="link" href="/reports">Reports</Link>
+              <Link className="link" href="/reports">Details</Link>
             </div>
+            <div className="hero-amount" style={{ marginTop: 0, marginBottom: 10 }}>
+              <span className="big" style={{ fontSize: 'clamp(30px, 9vw, 40px)' }}><Money value={spent} /></span>
+              <HideToggle />
+            </div>
+            <p className="card-sub" style={{ margin: '0 0 6px' }}>Where the money went</p>
             {catRows.length === 0 ? (
               <div className="empty"><strong>No spending yet this period</strong>Your categories will show up here as you add expenses.</div>
             ) : (
@@ -115,6 +153,48 @@ export default async function Overview() {
         </div>
 
         <div className="stack">
+          <section className="glass card">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title">Coming up</h2>
+                <p className="card-sub">Next 7 days</p>
+              </div>
+              <Link className="link" href="/calendar">Calendar</Link>
+            </div>
+            {upcoming.length === 0 ? (
+              <p className="muted" style={{ fontSize: 14, margin: 0 }}>Nothing planned. Add a reminder from the + button.</p>
+            ) : (
+              <div className="rows">
+                {upcoming.map(({ ev, occ }) => (
+                  <Link key={ev.id + occ} href={`/calendar?d=${occ.slice(0, 10)}`} className="row" style={{ gridTemplateColumns: 'auto minmax(0,1fr)' }}>
+                    <span className="bubble" style={{ background: 'rgba(245,176,122,.16)', width: 40, height: 40, fontSize: 12.5, fontWeight: 800, color: '#ffd9bb' }}>
+                      {ev.all_day ? 'Day' : occ.slice(11, 16)}
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <span className="row-title" style={{ display: 'block' }}>{ev.title}</span>
+                      <span className="row-meta"><span>{dayLabel(occ, today)}</span>{ev.alert_minutes !== null && <IBell aria-label="Has alert" />}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="glass card">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title">Your week</h2>
+                <p className="card-sub">Last 7 days</p>
+              </div>
+              <Link className="link" href="/journal">Journal</Link>
+            </div>
+            <div className="stats">
+              <div className="stat"><div className="stat-label">Mood</div><div className="stat-value">{weekMood ? `${moodOf(weekMood).emoji} ${weekMood.toFixed(1)}` : '–'}</div></div>
+              <div className="stat"><div className="stat-label">Running</div><div className="stat-value num">{km(runs7.reduce((s, r) => s + (r.distance_m ?? 0), 0), 1)} km</div></div>
+              <div className="stat"><div className="stat-label">Tennis</div><div className="stat-value num">{tennis7.length ? fmtHours(tennis7.reduce((s, t) => s + t.duration_sec, 0)) : '–'}</div></div>
+            </div>
+          </section>
+
           <section className="glass card">
             <div className="card-head" style={{ marginBottom: 6 }}>
               <div>

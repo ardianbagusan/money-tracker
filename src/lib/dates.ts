@@ -82,8 +82,8 @@ export function partOfDay(time: string) {
 export function greeting(time: string) {
   const h = Number(time.slice(11, 13));
   if (h >= 4 && h < 11) return 'Good morning';
-  if (h >= 11 && h < 15) return 'Good afternoon';
-  if (h >= 15 && h < 19) return 'Good evening';
+  if (h >= 11 && h < 17) return 'Good afternoon';
+  if (h >= 17 && h < 22) return 'Good evening';
   return 'Good night';
 }
 

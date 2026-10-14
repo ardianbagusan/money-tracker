@@ -67,3 +67,40 @@ export type Draft = {
   category_id: number | null;
   wallet_id: number | null;
 };
+
+export type Energy = 'low' | 'medium' | 'high';
+export type JournalTag = { id: number; name: string; emoji: string; sort: number; archived: boolean };
+export type JournalEntry = {
+  id: number;
+  occurred_at: string; // "YYYY-MM-DDTHH:mm"
+  mood: number; // 1–5
+  energy: Energy | null;
+  tag_ids: number[];
+  note: string;
+};
+
+export type Sport = 'running' | 'tennis';
+export type Workout = {
+  id: number;
+  sport: Sport;
+  occurred_at: string;
+  duration_sec: number;
+  distance_m: number | null;
+  effort: number | null;
+  avg_hr: number | null;
+  tennis_format: 'singles' | 'doubles' | null;
+  result: 'won' | 'lost' | 'draw' | null;
+  score: string;
+  note: string;
+};
+
+export type Repeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type CalEvent = {
+  id: number;
+  title: string;
+  note: string;
+  start_at: string; // "YYYY-MM-DDTHH:mm"
+  all_day: boolean;
+  repeat: Repeat;
+  alert_minutes: number | null;
+};

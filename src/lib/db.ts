@@ -1,5 +1,6 @@
 import 'server-only';
 import postgres from 'postgres';
+import { randomBytes } from 'crypto';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -116,6 +117,67 @@ create table if not exists goals (
 );
 
 create table if not exists login_attempts (ip text not null, at timestamptz not null default now());
+
+-- Journal and mood
+create table if not exists journal_tags (
+  id serial primary key,
+  name text not null,
+  emoji text not null default '✨',
+  sort int not null default 0,
+  archived boolean not null default false
+);
+create table if not exists journal_entries (
+  id serial primary key,
+  occurred_at timestamp not null,
+  mood int not null check (mood between 1 and 5),
+  energy text check (energy in ('low','medium','high')),
+  tag_ids int[] not null default '{}',
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists journal_occurred_idx on journal_entries (occurred_at desc);
+
+-- Sports
+create table if not exists workouts (
+  id serial primary key,
+  sport text not null check (sport in ('running','tennis')),
+  occurred_at timestamp not null,
+  duration_sec int not null check (duration_sec > 0),
+  distance_m int,
+  effort int check (effort between 1 and 10),
+  avg_hr int,
+  tennis_format text check (tennis_format in ('singles','doubles')),
+  result text check (result in ('won','lost','draw')),
+  score text not null default '',
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists workouts_occurred_idx on workouts (occurred_at desc);
+
+-- Calendar and reminders
+create table if not exists events (
+  id serial primary key,
+  title text not null,
+  note text not null default '',
+  start_at timestamp not null,
+  all_day boolean not null default false,
+  repeat text not null default 'none' check (repeat in ('none','daily','weekly','monthly','yearly')),
+  alert_minutes int,
+  created_at timestamptz not null default now()
+);
+create table if not exists event_alerts_sent (
+  event_id int not null references events(id) on delete cascade,
+  occurrence_at timestamp not null,
+  sent_at timestamptz not null default now(),
+  primary key (event_id, occurrence_at)
+);
+create table if not exists push_subscriptions (
+  endpoint text primary key,
+  p256dh text not null,
+  auth text not null,
+  label text not null default '',
+  created_at timestamptz not null default now()
+);
 `;
 
 const EXPENSE_SEED: [string, string, string, string][] = [
@@ -138,6 +200,11 @@ const INCOME_SEED: [string, string, string, string][] = [
   ['Other income', '💰', '#3987e5', 'transfer masuk,refund,cashback,terima,dapat'],
 ];
 
+const TAG_SEED: [string, string][] = [
+  ['Work', '💼'], ['Study', '📚'], ['Family', '🏡'], ['Friends', '🧑‍🤝‍🧑'], ['Exercise', '🏃'], ['Outdoors', '🌳'],
+  ['Rest', '😴'], ['Good food', '🍜'], ['Hobby', '🎨'], ['Travel', '🧳'], ['Date', '💞'], ['Sick', '🤒'],
+];
+
 async function setup() {
   await sql.unsafe(SCHEMA);
   const [{ count }] = await sql`select count(*)::int as count from categories`;
@@ -151,6 +218,23 @@ async function setup() {
   const [{ wc }] = await sql`select count(*)::int as wc from wallets`;
   if (wc === 0) await sql`insert into wallets (name, kind, emoji, is_default) values ('Cash', 'cash', '💵', true)`;
   await sql`insert into settings (key, value) values ('timezone', 'Asia/Jakarta'), ('period_start', '1') on conflict do nothing`;
+
+  const [{ tc }] = await sql`select count(*)::int as tc from journal_tags`;
+  if (tc === 0) {
+    let i = 0;
+    for (const [name, emoji] of TAG_SEED) await sql`insert into journal_tags (name, emoji, sort) values (${name}, ${emoji}, ${i++})`;
+  }
+
+  // Keys for push alerts and for the reminder pinger, made once per database.
+  // Kept in the database so you don't have to create or paste any extra secrets.
+  const [{ vk }] = await sql`select count(*)::int as vk from settings where key = 'vapid_public'`;
+  if (vk === 0) {
+    const webpush = (await import('web-push')).default;
+    const keys = webpush.generateVAPIDKeys();
+    await sql`insert into settings (key, value) values ('vapid_public', ${keys.publicKey}), ('vapid_private', ${keys.privateKey}) on conflict do nothing`;
+  }
+  const cronKey = randomBytes(24).toString('base64url');
+  await sql`insert into settings (key, value) values ('cron_key', ${cronKey}) on conflict do nothing`;
 }
 
 /** Creates tables and starter data the first time the app talks to a fresh database. */
@@ -165,9 +249,20 @@ export function ensureSchema() {
   return globalThis.__schemaReady;
 }
 
-export async function getSettings(): Promise<{ timezone: string; periodStart: number }> {
+export async function getSettings(): Promise<{ timezone: string; periodStart: number; vapidPublic: string }> {
   await ensureSchema();
-  const rows = await sql`select key, value from settings`;
+  const rows = await sql`select key, value from settings where key in ('timezone', 'period_start', 'vapid_public')`;
   const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return { timezone: m.timezone || 'Asia/Jakarta', periodStart: Math.min(28, Math.max(1, Number(m.period_start) || 1)) };
+  return {
+    timezone: m.timezone || 'Asia/Jakarta',
+    periodStart: Math.min(28, Math.max(1, Number(m.period_start) || 1)),
+    vapidPublic: m.vapid_public || '',
+  };
+}
+
+/** Secret values that never leave the server. */
+export async function getSecretSetting(key: 'vapid_private' | 'vapid_public' | 'cron_key') {
+  await ensureSchema();
+  const [r] = await sql`select value from settings where key = ${key}`;
+  return (r?.value as string) || '';
 }

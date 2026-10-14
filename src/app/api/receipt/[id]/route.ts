@@ -1,13 +1,12 @@
-import { sql, ensureSchema } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { db } from '@/lib/db';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let sql;
   try {
-    await requireAuth();
+    sql = await db();
   } catch {
     return new Response('Not signed in', { status: 401 });
   }
-  await ensureSchema();
   const { id } = await params;
   const [r] = await sql`select mime, data from receipts where transaction_id = ${Number(id) || 0}`;
   if (!r) return new Response('Not found', { status: 404 });

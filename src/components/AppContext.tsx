@@ -12,6 +12,7 @@ export type SheetRequest =
   | { kind: 'event'; event?: CalEvent; date?: string };
 
 type Ctx = {
+  userName: string;
   tags: JournalTag[];
   tagById: Map<number, JournalTag>;
   vapidPublic: string;
@@ -36,7 +37,7 @@ export function useApp() {
   return c;
 }
 
-export function AppProvider({ categories, wallets, now, tags, vapidPublic, children }: { categories: Category[]; wallets: Wallet[]; now: string; tags: JournalTag[]; vapidPublic: string; children: ReactNode }) {
+export function AppProvider({ userName, categories, wallets, now, tags, vapidPublic, children }: { userName: string; categories: Category[]; wallets: Wallet[]; now: string; tags: JournalTag[]; vapidPublic: string; children: ReactNode }) {
   const [hidden, setHidden] = useState(false);
   const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [toastMsg, setToastMsg] = useState<{ msg: string; bad?: boolean; id: number } | null>(null);
@@ -85,6 +86,7 @@ export function AppProvider({ categories, wallets, now, tags, vapidPublic, child
 
   const value = useMemo<Ctx>(
     () => ({
+      userName,
       tags,
       tagById: new Map(tags.map((t) => [t.id, t])),
       vapidPublic,
@@ -100,7 +102,7 @@ export function AppProvider({ categories, wallets, now, tags, vapidPublic, child
       closeSheet: () => setSheet(null),
       toast,
     }),
-    [tags, vapidPublic, categories, wallets, now, hidden, toggleHidden, sheet, toast],
+    [userName, tags, vapidPublic, categories, wallets, now, hidden, toggleHidden, sheet, toast],
   );
 
   return (

@@ -26,7 +26,7 @@ function deviceLabel() {
 
 /** Turns push alerts on or off for the device you are holding. */
 export function PushSetup({ compact }: { compact?: boolean }) {
-  const { vapidPublic, toast } = useApp();
+  const { vapidPublic, toast, userName } = useApp();
   const [state, setState] = useState<State>('checking');
   const [pending, start] = useTransition();
 
@@ -90,7 +90,7 @@ export function PushSetup({ compact }: { compact?: boolean }) {
     unsupported: 'This browser cannot receive alerts. On iPhone use the home-screen app (iOS 16.4 or newer).',
     off: 'Get an alert on this device when a reminder is due.',
     on: 'Alerts are on for this device.',
-    denied: 'Alerts are blocked. On iPhone: Settings → Notifications → Telaga → Allow Notifications. Then reopen the app.',
+    denied: `Alerts are blocked. On iPhone: Settings → Notifications → ${userName} → Allow Notifications. Then reopen the app.`,
   };
 
   return (

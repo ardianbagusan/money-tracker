@@ -1,15 +1,16 @@
 import 'server-only';
 import webpush from 'web-push';
-import { sql, getSecretSetting } from './db';
+import { getSecretSetting, type Sql } from './db';
 
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
 
 /** Sends a notification to every device that turned alerts on. Removes devices that unsubscribed. */
-export async function sendToAll(payload: PushPayload, origin: string) {
-  const [pub, priv] = await Promise.all([getSecretSetting('vapid_public'), getSecretSetting('vapid_private')]);
+export async function sendToAll(sql: Sql, payload: PushPayload, origin: string) {
+  const [pub, priv] = await Promise.all([getSecretSetting('vapid_public', sql), getSecretSetting('vapid_private', sql)]);
   if (!pub || !priv) throw new Error('Push keys are missing.');
+  // Keys go with each send (not set globally), so two people's alerts can never be signed with the wrong keys.
   // Apple requires the contact to be a real https URL or mailto; the app's own address works.
-  webpush.setVapidDetails(origin.startsWith('https://') ? origin : 'mailto:alerts@telaga.invalid', pub, priv);
+  const vapidDetails = { subject: origin.startsWith('https://') ? origin : 'mailto:alerts@telaga.invalid', publicKey: pub, privateKey: priv };
   const subs = await sql`select endpoint, p256dh, auth from push_subscriptions`;
   let sent = 0;
   const failures: string[] = [];
@@ -18,7 +19,7 @@ export async function sendToAll(payload: PushPayload, origin: string) {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         JSON.stringify(payload),
-        { TTL: 60 * 60, urgency: 'high' },
+        { TTL: 60 * 60, urgency: 'high', vapidDetails },
       );
       sent++;
     } catch (e: any) {

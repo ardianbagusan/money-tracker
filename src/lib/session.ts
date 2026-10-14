@@ -20,9 +20,10 @@ async function sign(payload: string) {
   return b64url(await crypto.subtle.sign('HMAC', await key(), enc.encode(payload)));
 }
 
-export async function createToken() {
+/** Cookie value: "v2.<user id>.<expiry>.<signature>" */
+export async function createToken(userId: number) {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE;
-  const payload = `v1.${exp}`;
+  const payload = `v2.${userId}.${exp}`;
   return `${payload}.${await sign(payload)}`;
 }
 
@@ -33,26 +34,33 @@ function safeEqual(a: string, b: string) {
   return r === 0;
 }
 
-export async function verifyToken(token?: string | null) {
-  if (!token) return false;
+/** Returns the signed-in user's id, or 0 when the cookie is missing, expired or forged. */
+export async function verifyToken(token?: string | null): Promise<number> {
+  if (!token) return 0;
   const parts = token.split('.');
-  if (parts.length !== 3 || parts[0] !== 'v1') return false;
-  const exp = Number(parts[1]);
-  if (!exp || exp < Date.now() / 1000) return false;
+  if (parts.length !== 4 || parts[0] !== 'v2') return 0;
+  const uid = Number(parts[1]);
+  const exp = Number(parts[2]);
+  if (!uid || !exp || exp < Date.now() / 1000) return 0;
   try {
-    return safeEqual(parts[2], await sign(`${parts[0]}.${parts[1]}`));
+    return safeEqual(parts[3], await sign(`${parts[0]}.${parts[1]}.${parts[2]}`)) ? uid : 0;
   } catch {
-    return false;
+    return 0;
   }
 }
 
-export async function passwordMatches(input: string) {
-  const real = process.env.APP_PASSWORD;
-  if (!real) throw new Error('APP_PASSWORD is not set.');
-  // Compare hashes so the check takes the same time whatever the input is.
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', enc.encode(input)),
-    crypto.subtle.digest('SHA-256', enc.encode(real)),
-  ]);
-  return safeEqual(b64url(a), b64url(b));
+/**
+ * Finds which user a password belongs to. Every password is checked (never stopping early),
+ * so the time taken doesn't reveal anything. Returns 0 when none match.
+ */
+export async function userForPassword(input: string, users: { id: number; passwordEnv: string }[]) {
+  const given = b64url(await crypto.subtle.digest('SHA-256', enc.encode(input)));
+  let found = 0;
+  for (const u of users) {
+    const real = process.env[u.passwordEnv];
+    if (!real) continue;
+    const hash = b64url(await crypto.subtle.digest('SHA-256', enc.encode(real)));
+    if (safeEqual(given, hash) && !found) found = u.id;
+  }
+  return found;
 }

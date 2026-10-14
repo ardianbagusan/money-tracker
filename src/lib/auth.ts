@@ -1,9 +1,7 @@
 import 'server-only';
-import { cookies } from 'next/headers';
-import { COOKIE, verifyToken } from './session';
+import { currentUserId } from './db';
 
-/** Second line of defence: every server action checks the login cookie itself too. */
+/** Second line of defence: every server action checks the login cookie itself too. Returns the user id. */
 export async function requireAuth() {
-  const store = await cookies();
-  if (!(await verifyToken(store.get(COOKIE)?.value))) throw new Error('Not signed in');
+  return currentUserId();
 }

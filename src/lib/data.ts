@@ -1,16 +1,16 @@
 import 'server-only';
 import { cache } from 'react';
-import { sql, ensureSchema, getSettings } from './db';
+import { db, getSettings, type Sql } from './db';
 import { advance, nowLocal } from './dates';
 import type { CalEvent, Category, Goal, Item, JournalEntry, JournalTag, Recurring, Tx, Wallet, Workout } from './types';
 
-const TX_COLS = sql`t.id, t.type, t.amount, t.title, t.note, t.category_id, t.wallet_id, t.to_wallet_id,
+const TX_COLS = `t.id, t.type, t.amount, t.title, t.note, t.category_id, t.wallet_id, t.to_wallet_id,
   to_char(t.occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, t.source, t.recurring_id,
   exists(select 1 from receipts r where r.transaction_id = t.id) as has_receipt,
   (select count(*)::int from transaction_items i where i.transaction_id = t.id) as item_count`;
 
 /** Adds any recurring transactions that have come due since the last visit. */
-async function runRecurring(now: string) {
+async function runRecurring(sql: Sql, now: string) {
   const due = await sql<any[]>`select id, type, amount, title, note, category_id, wallet_id, to_wallet_id, frequency, anchor_day,
     to_char(next_at, 'YYYY-MM-DD"T"HH24:MI') as next_at
     from recurring where active and next_at <= ${now}::text::timestamp`;
@@ -32,10 +32,10 @@ async function runRecurring(now: string) {
 }
 
 export const getBase = cache(async function getBase() {
-  await ensureSchema();
-  const settings = await getSettings();
+  const sql = await db();
+  const settings = await getSettings(sql);
   const now = nowLocal(settings.timezone);
-  await runRecurring(now);
+  await runRecurring(sql, now);
   const [categories, tags, wallets] = await Promise.all([
     sql<Category[]>`select * from categories order by kind, sort, id`,
     sql<JournalTag[]>`select id, name, emoji, sort, archived from journal_tags order by sort, id`,
@@ -66,7 +66,7 @@ export type TxFilter = {
 };
 
 export async function getTransactions(f: TxFilter = {}): Promise<Tx[]> {
-  await ensureSchema();
+  const sql = await db();
   const q = f.q?.trim();
   const qAmount = q ? Number(q.replace(/[^\d]/g, '')) : 0;
   const order =
@@ -74,7 +74,7 @@ export async function getTransactions(f: TxFilter = {}): Promise<Tx[]> {
     : f.sort === 'highest' ? sql`abs(t.amount) desc, t.occurred_at desc`
     : f.sort === 'lowest' ? sql`abs(t.amount) asc, t.occurred_at desc`
     : sql`t.occurred_at desc, t.id desc`;
-  const rows = await sql<Tx[]>`select ${TX_COLS}
+  const rows = await sql<Tx[]>`select ${sql.unsafe(TX_COLS)}
     from transactions t
     left join categories c on c.id = t.category_id
     left join wallets w on w.id = t.wallet_id
@@ -93,32 +93,35 @@ export async function getTransactions(f: TxFilter = {}): Promise<Tx[]> {
 }
 
 export async function getTransaction(id: number) {
-  await ensureSchema();
-  const [tx] = await sql<Tx[]>`select ${TX_COLS} from transactions t where t.id = ${id}`;
+  const sql = await db();
+  const [tx] = await sql<Tx[]>`select ${sql.unsafe(TX_COLS)} from transactions t where t.id = ${id}`;
   if (!tx) return null;
   const items = await sql<Item[]>`select id, name, amount, kind from transaction_items where transaction_id = ${id} order by sort, id`;
   return { tx, items: [...items] };
 }
 
 export async function getRecurring(): Promise<Recurring[]> {
-  await ensureSchema();
+  const sql = await db();
   const rows = await sql<Recurring[]>`select id, type, amount, title, category_id, wallet_id, to_wallet_id, frequency,
     to_char(next_at, 'YYYY-MM-DD"T"HH24:MI') as next_at, active from recurring order by active desc, next_at`;
   return [...rows];
 }
 
 export async function getBudgets(): Promise<Record<number, number>> {
+  const sql = await db();
   const rows = await sql`select category_id, amount from budgets`;
   return Object.fromEntries(rows.map((r) => [r.category_id, r.amount]));
 }
 
 export async function getGoals(): Promise<Goal[]> {
+  const sql = await db();
   const rows = await sql<Goal[]>`select id, name, emoji, target, saved from goals order by created_at`;
   return [...rows];
 }
 
 /** Money in and out per month for a year (transfers and adjustments excluded). */
 export async function getYearByMonth(year: number) {
+  const sql = await db();
   const rows = await sql`select extract(month from occurred_at)::int as m,
       coalesce(sum(amount) filter (where type = 'expense'), 0)::bigint as out,
       coalesce(sum(amount) filter (where type = 'income'), 0)::bigint as inc
@@ -135,11 +138,11 @@ export async function getYearByMonth(year: number) {
 }
 
 // ---------------- Journal ----------------
-const JOURNAL_COLS = sql`id, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, mood, energy, tag_ids, note`;
+const JOURNAL_COLS = `id, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, mood, energy, tag_ids, note`;
 
 export async function getJournal(from?: string, to?: string, limit = 2000): Promise<JournalEntry[]> {
-  await ensureSchema();
-  const rows = await sql<JournalEntry[]>`select ${JOURNAL_COLS} from journal_entries where true
+  const sql = await db();
+  const rows = await sql<JournalEntry[]>`select ${sql.unsafe(JOURNAL_COLS)} from journal_entries where true
     ${from ? sql`and occurred_at >= ${from}::text::timestamp` : sql``}
     ${to ? sql`and occurred_at < ${to}::text::timestamp` : sql``}
     order by occurred_at desc, id desc limit ${limit}`;
@@ -147,12 +150,12 @@ export async function getJournal(from?: string, to?: string, limit = 2000): Prom
 }
 
 // ---------------- Sports ----------------
-const WORKOUT_COLS = sql`id, sport, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, duration_sec, distance_m, effort,
+const WORKOUT_COLS = `id, sport, to_char(occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, duration_sec, distance_m, effort,
   avg_hr, tennis_format, result, score, note`;
 
 export async function getWorkouts(from?: string, to?: string, sport?: string, limit = 2000): Promise<Workout[]> {
-  await ensureSchema();
-  const rows = await sql<Workout[]>`select ${WORKOUT_COLS} from workouts where true
+  const sql = await db();
+  const rows = await sql<Workout[]>`select ${sql.unsafe(WORKOUT_COLS)} from workouts where true
     ${from ? sql`and occurred_at >= ${from}::text::timestamp` : sql``}
     ${to ? sql`and occurred_at < ${to}::text::timestamp` : sql``}
     ${sport ? sql`and sport = ${sport}` : sql``}
@@ -162,19 +165,21 @@ export async function getWorkouts(from?: string, to?: string, sport?: string, li
 
 // ---------------- Calendar ----------------
 export async function getEvents(): Promise<CalEvent[]> {
-  await ensureSchema();
+  const sql = await db();
   const rows = await sql<CalEvent[]>`select id, title, note, to_char(start_at, 'YYYY-MM-DD"T"HH24:MI') as start_at, all_day, repeat, alert_minutes
     from events order by start_at`;
   return [...rows];
 }
 
 export async function getPushDeviceCount() {
+  const sql = await db();
   const [{ n }] = await sql`select count(*)::int as n from push_subscriptions`;
   return n as number;
 }
 
 /** Spending per day (expenses only) for linking money with mood. */
 export async function getDailySpending(from: string, to: string): Promise<Record<string, number>> {
+  const sql = await db();
   const rows = await sql`select to_char(occurred_at, 'YYYY-MM-DD') as d, sum(amount)::bigint as s from transactions
     where type = 'expense' and occurred_at >= ${from}::text::timestamp and occurred_at < ${to}::text::timestamp group by 1`;
   return Object.fromEntries(rows.map((r) => [r.d, r.s]));

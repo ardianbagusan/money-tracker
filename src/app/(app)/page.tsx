@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { currentUser } from '@/lib/db';
 import { getBase, getBudgets, getEvents, getJournal, getTransactions, getWorkouts } from '@/lib/data';
 import { addDays, dayLabel, greeting, monthName, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
 import { MOODS, moodOf } from '@/lib/mood';
@@ -14,6 +15,7 @@ import { IBell, IChevR, IGear } from '@/components/icons';
 
 export default async function Overview() {
   const base = await getBase();
+  const user = await currentUser();
   const { today, now, categories, wallets } = base;
   const per = periodFor(today, base.settings.periodStart);
   const weekAgo = addDays(today, -6);
@@ -66,7 +68,7 @@ export default async function Overview() {
   return (
     <>
       <div className="topbar mobile-only" style={{ display: 'flex' }}>
-        <span className="brand" style={{ padding: 0 }}><span className="brand-mark" aria-hidden />Telaga</span>
+        <span className="brand" style={{ padding: 0 }}><span className="brand-mark" aria-hidden />{user.name}</span>
         <span style={{ display: 'flex', gap: 8 }}>
           <Link href="/budgets" className="btn" style={{ minHeight: 44 }}>Budgets</Link>
           <Link href="/settings" className="icon-btn" aria-label="Settings"><IGear /></Link>
@@ -75,7 +77,7 @@ export default async function Overview() {
 
       <section className={`hero${heroDark ? ' dark' : ''}`} style={{ backgroundImage: `url(${heroImg})`, marginTop: 12 }}>
         <div className="hero-date">{weekday(today)}, {shortDate(today)}</div>
-        <h1 className="hero-greet">{greeting(now)}.</h1>
+        <h1 className="hero-greet">{greeting(now)}, {user.name}.</h1>
         {todayMood ? (
           <OpenSheet req={{ kind: 'journal' }} className="hero-mood-btn" label="Add another journal entry">
             <span className="hero-mood">

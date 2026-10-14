@@ -2,17 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { sql, ensureSchema } from '@/lib/db';
+import { currentUser, db, type Sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { sendToAll } from '@/lib/push';
 
 type Result = { ok: boolean; id?: number; error?: string; info?: string };
 
-async function guard(fn: () => Promise<Result>): Promise<Result> {
+async function guard(fn: (sql: Sql) => Promise<Result>): Promise<Result> {
   try {
     await requireAuth();
-    await ensureSchema();
-    const r = await fn();
+    const sql = await db();
+    const r = await fn(sql);
     revalidatePath('/', 'layout');
     return r;
   } catch (e: any) {
@@ -31,7 +31,7 @@ const clampInt = (v: any, lo: number, hi: number) => {
 
 // ---------------- Journal ----------------
 export async function saveJournal(p: { id?: number; occurred_at: string; mood: number; energy: string | null; tag_ids: number[]; note: string }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     if (!isLocalTime(p.occurred_at)) throw new Error('Pick a valid date and time.');
     const mood = clampInt(p.mood, 1, 5);
     if (!mood) throw new Error('Pick how you feel.');
@@ -50,14 +50,14 @@ export async function saveJournal(p: { id?: number; occurred_at: string; mood: n
 }
 
 export async function deleteJournal(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from journal_entries where id = ${id}`;
     return { ok: true };
   });
 }
 
 export async function saveTag(t: { id?: number; name: string; emoji: string }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const name = (t.name || '').trim().slice(0, 30);
     if (!name) throw new Error('Give the activity a name.');
     const emoji = (t.emoji || '✨').trim().slice(0, 8) || '✨';
@@ -68,7 +68,7 @@ export async function saveTag(t: { id?: number; name: string; emoji: string }) {
 }
 
 export async function archiveTag(id: number, archived: boolean) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`update journal_tags set archived = ${archived} where id = ${id}`;
     return { ok: true };
   });
@@ -79,7 +79,7 @@ export async function saveWorkout(p: {
   id?: number; sport: 'running' | 'tennis'; occurred_at: string; duration_sec: number; distance_m: number | null; effort: number | null;
   avg_hr: number | null; tennis_format: string | null; result: string | null; score: string; note: string;
 }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     if (!['running', 'tennis'].includes(p.sport)) throw new Error('Pick a sport.');
     if (!isLocalTime(p.occurred_at)) throw new Error('Pick a valid date and time.');
     const duration = clampInt(p.duration_sec, 0, 24 * 3600);
@@ -107,7 +107,7 @@ export async function saveWorkout(p: {
 }
 
 export async function deleteWorkout(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from workouts where id = ${id}`;
     return { ok: true };
   });
@@ -115,7 +115,7 @@ export async function deleteWorkout(id: number) {
 
 // ---------------- Calendar ----------------
 export async function saveEvent(p: { id?: number; title: string; note: string; start_at: string; all_day: boolean; repeat: string; alert_minutes: number | null }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const title = (p.title || '').trim().slice(0, 120);
     if (!title) throw new Error('Give the event a title.');
     if (!isLocalTime(p.start_at)) throw new Error('Pick a valid date and time.');
@@ -136,7 +136,7 @@ export async function saveEvent(p: { id?: number; title: string; note: string; s
 }
 
 export async function deleteEvent(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from events where id = ${id}`;
     return { ok: true };
   });
@@ -144,7 +144,7 @@ export async function deleteEvent(id: number) {
 
 // ---------------- Push devices ----------------
 export async function savePushSubscription(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, label: string) {
-  return guard(async () => {
+  return guard(async (sql) => {
     if (!sub?.endpoint?.startsWith('https://') || !sub.keys?.p256dh || !sub.keys?.auth) throw new Error('This device did not return a valid subscription.');
     await sql`insert into push_subscriptions (endpoint, p256dh, auth, label) values (${sub.endpoint}, ${sub.keys.p256dh}, ${sub.keys.auth}, ${(label || '').slice(0, 80)})
       on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, label = excluded.label`;
@@ -153,18 +153,18 @@ export async function savePushSubscription(sub: { endpoint: string; keys: { p256
 }
 
 export async function removePushSubscription(endpoint: string) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from push_subscriptions where endpoint = ${endpoint}`;
     return { ok: true };
   });
 }
 
 export async function sendTestPush() {
-  return guard(async () => {
+  return guard(async (sql) => {
     const h = await headers();
     const host = h.get('x-forwarded-host') || h.get('host') || '';
     const proto = h.get('x-forwarded-proto') || 'https';
-    const r = await sendToAll({ title: 'Telaga', body: 'Alerts are working on this device. 🌤️', url: '/calendar', tag: 'test' }, `${proto}://${host}`);
+    const r = await sendToAll(sql, { title: (await currentUser()).name, body: 'Alerts are working on this device. 🌤️', url: '/calendar', tag: 'test' }, `${proto}://${host}`);
     if (r.devices === 0) throw new Error('No device has alerts turned on yet.');
     if (r.sent === 0) throw new Error(`Sending failed: ${r.failures[0] ?? 'unknown error'}`);
     return { ok: true, info: `Sent to ${r.sent} of ${r.devices} ${r.devices === 1 ? 'device' : 'devices'}.` };

@@ -7,7 +7,7 @@ import '@fontsource/plus-jakarta-sans/800.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Telaga',
+  title: 'Welcome',
   description: 'Private money tracker',
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   appleWebApp: { capable: true, title: 'Telaga', statusBarStyle: 'black-translucent' },

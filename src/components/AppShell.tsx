@@ -27,7 +27,7 @@ const LIFE_PATHS = ['/journal', '/sports'];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
-  const { openSheet, sheet } = useApp();
+  const { openSheet, sheet, userName } = useApp();
   const isActive = (href: string) =>
     href === '/' ? path === '/' : href === '/journal' ? path === '/journal' : path === href || path.startsWith(href + '/');
 
@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sidebar glass" aria-label="Main navigation">
         <div className="brand">
           <span className="brand-mark" aria-hidden />
-          Telaga
+          {userName}
         </div>
         <nav className="nav" style={{ overflowY: 'auto' }}>
           <div className="nav-label">Money</div>

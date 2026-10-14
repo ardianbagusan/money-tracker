@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { sql, ensureSchema } from '@/lib/db';
+import { db, type Sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { COOKIE } from '@/lib/session';
 import { advance } from '@/lib/dates';
@@ -11,11 +11,12 @@ import type { Draft, Item } from '@/lib/types';
 
 type Result = { ok: boolean; id?: number; error?: string };
 
-async function guard(fn: () => Promise<Result>): Promise<Result> {
+/** Checks the login, opens the signed-in person's database, runs the change, refreshes the screens. */
+async function guard(fn: (sql: Sql) => Promise<Result>): Promise<Result> {
   try {
     await requireAuth();
-    await ensureSchema();
-    const r = await fn();
+    const sql = await db();
+    const r = await fn(sql);
     revalidatePath('/', 'layout');
     return r;
   } catch (e: any) {
@@ -27,7 +28,7 @@ async function guard(fn: () => Promise<Result>): Promise<Result> {
 const int = (v: any) => (v === null || v === undefined || v === '' ? null : Math.round(Number(v)));
 const isLocalTime = (s: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s);
 
-async function walletBalance(walletId: number, excludeTx?: number) {
+async function walletBalance(sql: Sql, walletId: number, excludeTx?: number) {
   const [r] = await sql`select w.initial_balance + coalesce((select sum(case
       when t.type = 'income' and t.wallet_id = w.id then t.amount
       when t.type = 'expense' and t.wallet_id = w.id then -t.amount
@@ -57,7 +58,7 @@ export type TxPayload = {
 };
 
 export async function saveTransaction(p: TxPayload) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const type = p.type;
     if (!['expense', 'income', 'transfer', 'adjust'].includes(type)) throw new Error('Pick a transaction type.');
     const walletId = int(p.wallet_id);
@@ -67,7 +68,7 @@ export async function saveTransaction(p: TxPayload) {
     if (type !== 'adjust' && amount <= 0) throw new Error('Enter an amount above zero.');
     const toWallet = type === 'transfer' ? int(p.to_wallet_id) : null;
     if (type === 'transfer' && (!toWallet || toWallet === walletId)) throw new Error('Pick two different wallets for a transfer.');
-    if (type === 'adjust') amount = amount - (await walletBalance(walletId, p.id));
+    if (type === 'adjust') amount = amount - (await walletBalance(sql, walletId, p.id));
     const categoryId = type === 'expense' || type === 'income' ? int(p.category_id) : null;
     const title = (p.title || '').trim().slice(0, 120);
     const note = (p.note || '').trim().slice(0, 1000);
@@ -115,7 +116,7 @@ export async function saveTransaction(p: TxPayload) {
 }
 
 export async function saveDrafts(drafts: Draft[], occurredAt: string) {
-  return guard(async () => {
+  return guard(async (sql) => {
     if (!isLocalTime(occurredAt)) throw new Error('Invalid time.');
     for (const d of drafts) {
       const amount = Math.round(Number(d.amount) || 0);
@@ -131,13 +132,12 @@ export async function saveDrafts(drafts: Draft[], occurredAt: string) {
 
 export async function loadTransaction(id: number) {
   await requireAuth();
-  await ensureSchema();
   const { getTransaction } = await import('@/lib/data');
   return getTransaction(Number(id));
 }
 
 export async function deleteTransactions(ids: number[]) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const clean = ids.map(Number).filter(Boolean);
     if (clean.length) await sql`delete from transactions where id in ${sql(clean)}`;
     return { ok: true };
@@ -146,13 +146,13 @@ export async function deleteTransactions(ids: number[]) {
 
 // Recurring rules
 export async function setRecurringActive(id: number, active: boolean) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`update recurring set active = ${active} where id = ${id}`;
     return { ok: true };
   });
 }
 export async function deleteRecurring(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from recurring where id = ${id}`;
     return { ok: true };
   });
@@ -160,7 +160,7 @@ export async function deleteRecurring(id: number) {
 
 // Categories
 export async function saveCategory(c: { id?: number; name: string; emoji: string; color: string; kind: 'expense' | 'income'; keywords: string }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const name = (c.name || '').trim().slice(0, 40);
     if (!name) throw new Error('Give the category a name.');
     const keywords = (c.keywords || '')
@@ -180,7 +180,7 @@ export async function saveCategory(c: { id?: number; name: string; emoji: string
   });
 }
 export async function archiveCategory(id: number, archived: boolean) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`update categories set archived = ${archived} where id = ${id}`;
     return { ok: true };
   });
@@ -190,7 +190,7 @@ export async function archiveCategory(id: number, archived: boolean) {
 export async function saveWallet(w: {
   id?: number; name: string; kind: string; emoji: string; initial_balance: number; credit_limit: number | null; due_day: number | null;
 }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const name = (w.name || '').trim().slice(0, 40);
     if (!name) throw new Error('Give the wallet a name.');
     const kind = ['cash', 'bank', 'ewallet', 'credit', 'savings'].includes(w.kind) ? w.kind : 'cash';
@@ -211,13 +211,13 @@ export async function saveWallet(w: {
   });
 }
 export async function setDefaultWallet(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`update wallets set is_default = (id = ${id})`;
     return { ok: true };
   });
 }
 export async function archiveWallet(id: number, archived: boolean) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const [{ n }] = await sql`select count(*)::int as n from wallets where not archived and id <> ${id}`;
     if (archived && n === 0) throw new Error('Keep at least one wallet.');
     await sql`update wallets set archived = ${archived}, is_default = case when ${archived} then false else is_default end where id = ${id}`;
@@ -229,7 +229,7 @@ export async function archiveWallet(id: number, archived: boolean) {
 
 // Budgets and period
 export async function saveBudgets(entries: { category_id: number; amount: number }[]) {
-  return guard(async () => {
+  return guard(async (sql) => {
     for (const e of entries) {
       const amt = Math.round(Number(e.amount) || 0);
       if (amt > 0)
@@ -242,7 +242,7 @@ export async function saveBudgets(entries: { category_id: number; amount: number
 }
 
 export async function saveSetting(key: 'timezone' | 'period_start', value: string) {
-  return guard(async () => {
+  return guard(async (sql) => {
     if (key === 'period_start') {
       const n = Number(value);
       if (!(n >= 1 && n <= 28)) throw new Error('Pick a day between 1 and 28.');
@@ -261,7 +261,7 @@ export async function saveSetting(key: 'timezone' | 'period_start', value: strin
 
 // Goals
 export async function saveGoal(g: { id?: number; name: string; emoji: string; target: number; saved: number }) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const name = (g.name || '').trim().slice(0, 60);
     if (!name) throw new Error('Give the goal a name.');
     const target = Math.round(Number(g.target) || 0);
@@ -274,7 +274,7 @@ export async function saveGoal(g: { id?: number; name: string; emoji: string; ta
   });
 }
 export async function addToGoal(id: number, amount: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     const a = Math.round(Number(amount) || 0);
     if (!a) throw new Error('Enter an amount.');
     await sql`update goals set saved = greatest(0, saved + ${a}) where id = ${id}`;
@@ -282,7 +282,7 @@ export async function addToGoal(id: number, amount: number) {
   });
 }
 export async function deleteGoal(id: number) {
-  return guard(async () => {
+  return guard(async (sql) => {
     await sql`delete from goals where id = ${id}`;
     return { ok: true };
   });

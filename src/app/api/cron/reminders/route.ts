@@ -1,8 +1,8 @@
 // Called every minute by a free outside scheduler (cron-job.org), because
 // Vercel's free plan can only run scheduled jobs once a day.
-// It sends a push alert for every reminder whose alert time has just arrived.
+// One link serves everyone: it sends due alerts for each person from their own database.
 import { timingSafeEqual } from 'crypto';
-import { sql, ensureSchema, getSecretSetting, getSettings } from '@/lib/db';
+import { activeUsers, clientFor, ensureSchema, getSecretSetting, getSettings, type Sql } from '@/lib/db';
 import { nowLocal, shortDate } from '@/lib/dates';
 import { addMinutes, occurrences } from '@/lib/recur';
 import { sendToAll } from '@/lib/push';
@@ -18,29 +18,24 @@ function keyOk(given: string, real: string) {
   return timingSafeEqual(Buffer.from(given), Buffer.from(real));
 }
 
-async function handle(req: Request) {
-  await ensureSchema();
-  const url = new URL(req.url);
-  const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
-  const real = await getSecretSetting('cron_key');
-  if (!keyOk(url.searchParams.get('key') || bearer, real)) return new Response('Forbidden', { status: 403 });
+function leadText(m: number) {
+  if (m % 1440 === 0) return `${m / 1440} ${m === 1440 ? 'day' : 'days'}`;
+  if (m % 60 === 0) return `${m / 60} ${m === 60 ? 'hour' : 'hours'}`;
+  return `${m} min`;
+}
 
-  const { timezone } = await getSettings();
+async function sendDue(sql: Sql, origin: string) {
+  const { timezone } = await getSettings(sql);
   const now = nowLocal(timezone);
   const windowStart = addMinutes(now, -GRACE_MIN);
   const events = await sql<CalEvent[]>`select id, title, note, to_char(start_at, 'YYYY-MM-DD"T"HH24:MI') as start_at, all_day, repeat, alert_minutes
     from events where alert_minutes is not null`;
-
   const due: { ev: CalEvent; occ: string }[] = [];
   for (const ev of events) {
     // alert time = event start (09:00 for all-day) minus the chosen lead time
     const shift = (ev.all_day ? ALL_DAY_HOUR * 60 : 0) - (ev.alert_minutes ?? 0);
-    const from = addMinutes(windowStart, -shift);
-    const to = addMinutes(now, -shift + 1);
-    for (const occ of occurrences(ev, from, to, 5)) due.push({ ev, occ });
+    for (const occ of occurrences(ev, addMinutes(windowStart, -shift), addMinutes(now, -shift + 1), 5)) due.push({ ev, occ });
   }
-
-  const origin = `${url.protocol}//${url.host}`;
   let sent = 0;
   for (const { ev, occ } of due) {
     // Record first; if another ping already claimed this alert, skip it.
@@ -49,17 +44,36 @@ async function handle(req: Request) {
     if (!claimed.length) continue;
     const when = ev.all_day ? `${shortDate(occ)}, all day` : `${shortDate(occ)} at ${occ.slice(11, 16)}`;
     const lead = ev.alert_minutes ? ` (in ${leadText(ev.alert_minutes)})` : '';
-    await sendToAll({ title: ev.title, body: `${when}${lead}${ev.note ? `\n${ev.note.slice(0, 120)}` : ''}`, url: `/calendar?d=${occ.slice(0, 10)}`, tag: `ev-${ev.id}-${occ}` }, origin);
+    await sendToAll(sql, { title: ev.title, body: `${when}${lead}${ev.note ? `\n${ev.note.slice(0, 120)}` : ''}`, url: `/calendar?d=${occ.slice(0, 10)}`, tag: `ev-${ev.id}-${occ}` }, origin);
     sent++;
   }
   await sql`delete from event_alerts_sent where sent_at < now() - interval '60 days'`;
-  return Response.json({ ok: true, now, checked: events.length, sent });
+  return { now, checked: events.length, sent };
 }
 
-function leadText(m: number) {
-  if (m % 1440 === 0) return `${m / 1440} ${m === 1440 ? 'day' : 'days'}`;
-  if (m % 60 === 0) return `${m / 60} ${m === 60 ? 'hour' : 'hours'}`;
-  return `${m} min`;
+async function handle(req: Request) {
+  const url = new URL(req.url);
+  const given = url.searchParams.get('key') || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const users = activeUsers();
+  // The link is valid if its key matches any person's key (each person's Settings shows their own).
+  let ok = false;
+  for (const u of users) {
+    await ensureSchema(u.id);
+    if (keyOk(given, await getSecretSetting('cron_key', clientFor(u.id)))) ok = true;
+  }
+  if (!ok) return new Response('Forbidden', { status: 403 });
+
+  const origin = `${url.protocol}//${url.host}`;
+  const results: Record<string, unknown> = {};
+  for (const u of users) {
+    try {
+      results[`user${u.id}`] = await sendDue(clientFor(u.id), origin);
+    } catch (e: any) {
+      console.error(e);
+      results[`user${u.id}`] = { error: 'failed' };
+    }
+  }
+  return Response.json({ ok: true, ...results });
 }
 
 export const GET = handle;

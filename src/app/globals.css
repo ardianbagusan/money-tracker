@@ -509,3 +509,103 @@ button.row:hover, a.row:hover { background: rgba(40, 66, 118, 0.6); }
 .pixels i { aspect-ratio: 1; border-radius: 3px; background: rgba(156, 200, 242, 0.07); display: block; }
 .pixels i.none { background: transparent; }
 .hero-mood-btn { background: none; border: 0; padding: 0; color: inherit; text-align: left; display: block; }
+
+/* ===================== Revision 3: phone fit and glass ===================== */
+
+/* Nothing may make the page wider than the screen (iPhone would zoom the page out). */
+html, body { overflow-x: clip; max-width: 100%; }
+.grid-2, .grid-even { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1100px) { .grid-2 { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); } }
+@media (min-width: 760px) { .grid-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.grid-2 > *, .grid-even > *, .stack > * { min-width: 0; }
+
+/* Phone: equal side margins and room below the status bar so headings aren't under the iOS blur */
+@media (max-width: 959px) {
+  .main {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
+  }
+}
+
+/* Date and time pickers: iPhone gives them a fixed wide size; make them fit their box */
+input[type='date'], input[type='time'], input[type='datetime-local'] {
+  -webkit-appearance: none; appearance: none;
+  display: block; width: 100%; min-width: 0; max-width: 100%;
+  text-align: left; line-height: 52px;
+}
+input::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input::-webkit-datetime-edit { padding: 0; }
+.sheet-body { overflow-x: hidden; }
+
+/* Filter chips wrap onto new lines instead of running off the right edge */
+.chips { flex-wrap: wrap; overflow: visible; padding-bottom: 2px; }
+@media (max-width: 959px) {
+  .chip { min-height: 36px; padding: 0 12px; font-size: 13.5px; }
+}
+
+/* Section tabs: a segmented bar that always fits the width */
+.section-tabs {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px;
+  padding: 4px; border-radius: 999px; overflow: visible; margin: 0 0 14px;
+  background: rgba(10, 22, 46, 0.5); border: 1px solid var(--stroke);
+}
+.section-tabs a {
+  text-align: center; padding: 9px 4px; border: 0; background: transparent; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.section-tabs a[aria-current='page'] { background: rgba(156, 200, 242, 0.22); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 2px 8px rgba(0,0,0,.25); }
+
+/* ---------- Liquid glass tab bar ----------
+   Safari can't bend (refract) what's behind a web element, so this imitates the look:
+   a clear lens with strong blur, saturation, bright rim and edge highlights. */
+.tabbar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 45%, rgba(255, 255, 255, 0.09)),
+    rgba(28, 50, 96, 0.28);
+  -webkit-backdrop-filter: blur(14px) saturate(210%) brightness(1.12) contrast(1.06);
+  backdrop-filter: blur(14px) saturate(210%) brightness(1.12) contrast(1.06);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset -1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 22px rgba(170, 205, 255, 0.14),
+    0 12px 34px rgba(2, 8, 22, 0.45);
+}
+.tabbar::before {
+  /* lens edges: brighter at the rounded ends, like light refracting in thick glass */
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(60% 140% at 0% 50%, rgba(255, 255, 255, 0.18), transparent 60%),
+    radial-gradient(60% 140% at 100% 50%, rgba(255, 255, 255, 0.14), transparent 60%);
+}
+.tabbar::after { background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 42%); }
+.tabbar a { position: relative; z-index: 1; color: rgba(238, 243, 255, 0.82); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.tabbar a[aria-current='page'] {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.1));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.fab {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 50%),
+    radial-gradient(120% 120% at 30% 20%, rgba(251, 211, 176, 0.92), rgba(245, 176, 122, 0.9) 55%, rgba(232, 149, 92, 0.92));
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  backdrop-filter: blur(10px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.75), inset 0 -2px 6px rgba(160, 80, 30, 0.25), 0 12px 30px rgba(232, 149, 92, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Emoji icons ---------- */
+.emo { display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 1.1em; flex: none; font-style: normal; }
+.tabbar a .emo { font-size: 22px; height: 24px; }
+.nav a .emo { font-size: 18px; width: 22px; }
+.btn .emo { font-size: 17px; }
+.chip .emo { font-size: 15px; }
+.icon-btn .emo { font-size: 19px; }
+.row-meta .emo { font-size: 12px; }
+.choose-ic .emo { font-size: 22px; }
+.hero-amount button .emo { font-size: 17px; }
+@media (min-width: 960px) { .section-tabs { display: none; } }

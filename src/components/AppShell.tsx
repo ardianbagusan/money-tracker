@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useApp } from './AppContext';
-import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IPlus, IRun, ISmile, IWallet } from './icons';
+import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IMoney, IPlus, IRun, ISmile, IWallet } from './icons';
 import { TxSheet } from './TxSheet';
 import { ChooserSheet, EventSheet, JournalSheet, WorkoutSheet } from './LifeSheets';
 import { signOut } from '@/app/actions';
@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const tabs = [
     { href: '/', label: 'Home', icon: IHome, on: path === '/' },
-    { href: '/history', label: 'Money', icon: IWallet, on: MONEY_PATHS.some((p) => path.startsWith(p)) },
+    { href: '/history', label: 'Money', icon: IMoney, on: MONEY_PATHS.some((p) => path.startsWith(p)) },
     { href: '/journal', label: 'Journal', icon: IBook, on: LIFE_PATHS.some((p) => path.startsWith(p)) },
     { href: '/calendar', label: 'Calendar', icon: ICalendar, on: path.startsWith('/calendar') },
   ];
@@ -106,7 +106,7 @@ export function SectionTabs({ section }: { section: 'money' | 'life' }) {
   const path = usePathname();
   const items =
     section === 'money'
-      ? [{ href: '/history', label: 'Transactions' }, { href: '/reports', label: 'Reports' }, { href: '/budgets', label: 'Budgets' }, { href: '/wallets', label: 'Wallets' }]
+      ? [{ href: '/history', label: 'History' }, { href: '/reports', label: 'Reports' }, { href: '/budgets', label: 'Budgets' }, { href: '/wallets', label: 'Wallets' }]
       : [{ href: '/journal', label: 'Journal' }, { href: '/journal/insights', label: 'Mood insights' }, { href: '/sports', label: 'Sports' }];
   return (
     <nav className="section-tabs" aria-label={section === 'money' ? 'Money sections' : 'Life sections'}>

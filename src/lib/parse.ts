@@ -32,6 +32,22 @@ function keywordHit(text: string, keywords: string) {
   return best;
 }
 
+/** Best category for some text by keywords, or null. Used by receipt scans and email imports. */
+export function guessCategory(text: string, categories: Category[], kind: 'expense' | 'income'): Category | null {
+  const ws = words(text).join(' ');
+  let best: Category | null = null;
+  let bestScore = 0;
+  for (const c of categories) {
+    if (c.archived || c.kind !== kind) continue;
+    const s = keywordHit(ws, c.keywords) + (keywordHit(ws, c.name) ? 5 : 0);
+    if (s > bestScore) {
+      bestScore = s;
+      best = c;
+    }
+  }
+  return best;
+}
+
 export function parseQuickText(text: string, categories: Category[], wallets: Wallet[]): Draft[] {
   const active = categories.filter((c) => !c.archived);
   const activeWallets = wallets.filter((w) => !w.archived);

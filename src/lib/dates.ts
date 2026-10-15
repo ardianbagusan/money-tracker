@@ -1,7 +1,7 @@
 // Dates are stored as local wall time ("2026-10-14T11:14") in the time zone set
 // in Settings, so a coffee at 23:30 in Jakarta always counts on that day.
 
-export function nowLocal(tz: string) {
+export function nowLocal(tz: string, at: Date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz,
     year: 'numeric',
@@ -10,7 +10,7 @@ export function nowLocal(tz: string) {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date());
+  }).formatToParts(at);
   const g = (t: string) => parts.find((p) => p.type === t)?.value ?? '00';
   return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}`;
 }

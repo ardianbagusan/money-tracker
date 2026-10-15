@@ -208,6 +208,7 @@ button { cursor: pointer; }
 .btn-block { width: 100%; min-height: 54px; font-size: 16px; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 .link { color: var(--mist); font-weight: 700; font-size: 15px; }
+.link-btn { background: none; border: 0; padding: 4px 0; cursor: pointer; font-family: inherit; }
 
 /* ---------- Chips & segmented ---------- */
 .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -247,6 +248,9 @@ button { cursor: pointer; }
 .stat-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 .stat-value { font-size: 19px; font-weight: 800; margin-top: 2px; letter-spacing: -0.02em; }
 @media (min-width: 760px) { .stat-value { font-size: 24px; } }
+.stat-foot { font-size: 12.5px; color: var(--muted); margin-top: 4px; font-weight: 600; }
+.week-compare { margin: 12px 0 8px; font-size: 14px; color: var(--muted); }
+.week-compare .pos, .week-compare .warn { font-weight: 800; }
 .empty { text-align: center; padding: 28px 12px; color: var(--muted); }
 .empty strong { display: block; color: var(--text); font-size: 17px; margin-bottom: 4px; }
 
@@ -271,6 +275,7 @@ button { cursor: pointer; }
 .hero-amount { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
 .hero-amount .big { font-size: clamp(30px, 10.5vw, 44px); white-space: nowrap; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .hero-amount button { border: 0; background: rgba(255,255,255,.4); color: inherit; width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; }
+.card .hero-amount button { background: rgba(255,255,255,.12); }
 .hero.night .hero-amount button { background: rgba(255,255,255,.14); }
 .hero-amount svg { width: 19px; height: 19px; }
 .hero-caption { font-size: 14px; font-weight: 600; opacity: 0.8; margin-top: 6px; }
@@ -609,3 +614,28 @@ input::-webkit-datetime-edit { padding: 0; }
 .choose-ic .emo { font-size: 22px; }
 .hero-amount button .emo { font-size: 17px; }
 @media (min-width: 960px) { .section-tabs { display: none; } }
+
+/* Receipt scanner */
+.scan-btn { width: 100%; border-style: dashed; }
+.scan-progress { padding: 14px 16px; border-radius: 18px; }
+.scan-result { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 16px; font-size: 14px; border: 1px solid var(--stroke); }
+.scan-result.ok { background: rgba(25, 158, 112, 0.14); }
+.scan-result.check { background: rgba(201, 133, 0, 0.14); }
+.scan-result span { color: var(--muted); }
+.scan-result details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.scan-result pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 220px; overflow: auto; background: rgba(0,0,0,.25); padding: 10px; border-radius: 10px; margin: 6px 0 0; }
+
+/* Gmail import */
+.steps { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.steps strong { color: var(--text, #eef3ff); }
+.code-box { white-space: pre-wrap; word-break: break-all; font-size: 11.5px; max-height: 260px; overflow: auto; background: rgba(8,18,38,.6); padding: 12px; border-radius: 12px; margin: 12px 0 0; }
+.imp { padding: 14px; border-radius: 20px; background: rgba(10, 22, 46, 0.4); border: 1px solid var(--stroke); display: grid; gap: 10px; min-width: 0; }
+.imp-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); font-weight: 600; flex-wrap: wrap; }
+.imp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.imp-grid .input, .imp-grid .select { min-height: 44px; font-size: 15px; min-width: 0; width: 100%; }
+.imp-grid .imp-wide { grid-column: 1 / -1; }
+.imp-hint { font-size: 13px; padding: 8px 10px; border-radius: 12px; background: rgba(201, 133, 0, 0.14); }
+.imp-actions { display: flex; gap: 8px; }
+.imp-actions .btn { flex: 1; min-height: 42px; }
+.imp-snip { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.import-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 22px; margin-top: 16px; font-size: 15px; }

@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import { currentUser } from '@/lib/db';
-import { getBase, getBudgets, getEvents, getJournal, getTransactions, getWorkouts } from '@/lib/data';
-import { addDays, dayLabel, greeting, monthName, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
+import { getBase, getBudgets, getEmailImportCount, getEvents, getJournal, getTransactions, getWorkouts } from '@/lib/data';
+import { addDays, dayLabel, greeting, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
 import { MOODS, moodOf } from '@/lib/mood';
 import { occurrences } from '@/lib/recur';
 import { fmtHours, km } from '@/lib/sport';
 import { OpenSheet } from '@/components/LifeBits';
-import { rpShort } from '@/lib/format';
 import { Money } from '@/components/Money';
 import { QuickAdd } from '@/components/QuickAdd';
 import { HideToggle } from '@/components/HideToggle';
@@ -19,13 +18,19 @@ export default async function Overview() {
   const { today, now, categories, wallets } = base;
   const per = periodFor(today, base.settings.periodStart);
   const weekAgo = addDays(today, -6);
-  const [periodTx, recent, budgets, journal7, workouts7, events] = await Promise.all([
+  // Calendar week starts Monday. Compare with last week up to the same weekday.
+  const dow = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
+  const weekStart = addDays(today, -dow);
+  const lastWeekStart = addDays(weekStart, -7);
+  const [periodTx, weekTx, recent, budgets, journal7, workouts7, events, importCount] = await Promise.all([
     getTransactions({ from: per.from, to: per.to, types: ['expense', 'income'] }),
+    getTransactions({ from: lastWeekStart, to: addDays(today, 1), types: ['expense', 'income'] }),
     getTransactions({ limit: 6 }),
     getBudgets(),
     getJournal(weekAgo, addDays(today, 1)),
     getWorkouts(weekAgo, addDays(today, 1)),
     getEvents(),
+    getEmailImportCount(),
   ]);
   const todayEntries = journal7.filter((e) => e.occurred_at.startsWith(today));
   const todayMood = todayEntries.length ? todayEntries.reduce((s, e) => s + e.mood, 0) / todayEntries.length : 0;
@@ -40,11 +45,18 @@ export default async function Overview() {
   const out = periodTx.filter((t) => t.type === 'expense');
   const spent = out.reduce((s, t) => s + t.amount, 0);
   const earned = periodTx.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const todayOut = out.filter((t) => t.occurred_at.startsWith(today));
-  const todaySum = todayOut.reduce((s, t) => s + t.amount, 0);
+  const sumOf = (txs: typeof weekTx, type: 'expense' | 'income') => txs.filter((t) => t.type === type).reduce((a, t) => a + t.amount, 0);
+  const dayOf = (t: (typeof weekTx)[number]) => t.occurred_at.slice(0, 10);
+  const todayTx = weekTx.filter((t) => dayOf(t) === today);
+  const todayOutN = todayTx.filter((t) => t.type === 'expense').length;
+  const thisWeek = weekTx.filter((t) => dayOf(t) >= weekStart);
+  const lastWeekSoFar = weekTx.filter((t) => dayOf(t) >= lastWeekStart && dayOf(t) <= addDays(lastWeekStart, dow));
+  const weekOut = sumOf(thisWeek, 'expense');
+  const lastOut = sumOf(lastWeekSoFar, 'expense');
+  const diff = weekOut - lastOut;
 
   const byCat = new Map<number, number>();
-  for (const t of out) byCat.set(t.category_id ?? 0, (byCat.get(t.category_id ?? 0) ?? 0) + t.amount);
+  for (const t of thisWeek) if (t.type === 'expense') byCat.set(t.category_id ?? 0, (byCat.get(t.category_id ?? 0) ?? 0) + t.amount);
   const catRows = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
   const max = catRows[0]?.[1] ?? 1;
   const catMap = new Map(categories.map((c) => [c.id, c]));
@@ -58,12 +70,15 @@ export default async function Overview() {
   // The sky follows today's mood once it's logged; before that, the time of day.
   const heroImg = todayMood ? `/art/mood-${Math.round(todayMood)}.jpg` : `/art/hero-${pod}.jpg`;
   const heroDark = todayMood ? Math.round(todayMood) <= 2 : pod === 'night';
-  const pm = Number(per.from.slice(5, 7));
-  const periodLabel = base.settings.periodStart === 1 ? `${monthName(pm, true)} spending` : `Spending since ${shortDate(per.from)}`;
-  const todayLine =
-    todayOut.length === 0
-      ? 'Nothing has gone out today yet.'
-      : `Today ${rpShort(todaySum)} has gone out in ${todayOut.length} ${todayOut.length === 1 ? 'payment' : 'payments'}.`;
+  const dayName = weekday(today);
+  const compareLine =
+    lastOut === 0 && weekOut === 0
+      ? 'Nothing spent this week yet.'
+      : lastOut === 0
+        ? `Nothing was spent by ${dayName} last week.`
+        : diff === 0
+          ? `Same as last week by ${dayName}.`
+          : null;
 
   return (
     <>
@@ -103,40 +118,70 @@ export default async function Overview() {
         <QuickAdd />
       </section>
 
+      {importCount > 0 && (
+        <Link href="/imports" className="glass import-banner">
+          <span aria-hidden style={{ fontSize: 22 }}>📬</span>
+          <span><strong>{importCount} from email to check</strong><span className="muted"> · tap to add or dismiss</span></span>
+          <IChevR width={16} className="faint" />
+        </Link>
+      )}
+
       <div className="grid-2" style={{ marginTop: 16 }}>
         <div className="stack">
           <section className="glass card">
             <div className="card-head">
               <div>
                 <h2 className="card-title">Summary</h2>
-                <p className="card-sub">{periodLabel}, day {per.dayIndex} of {per.totalDays}. {todayLine}</p>
+                <p className="card-sub">Today and this week (since Monday {shortDate(weekStart)})</p>
               </div>
-              <Link className="link" href="/reports">Details</Link>
+              <span className="hero-amount" style={{ margin: 0 }}>
+                <HideToggle />
+                <Link className="link" href="/reports">Month</Link>
+              </span>
             </div>
-            <div className="hero-amount" style={{ marginTop: 0, marginBottom: 10 }}>
-              <span className="big" style={{ fontSize: 'clamp(30px, 9vw, 40px)' }}><Money value={spent} /></span>
-              <HideToggle />
+            <div className="stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <div className="stat">
+                <div className="stat-label">Today</div>
+                <div className="stat-value"><Money value={sumOf(todayTx, 'expense')} short /></div>
+                <div className="stat-foot">
+                  {todayOutN === 0 ? 'No payments yet' : `${todayOutN} ${todayOutN === 1 ? 'payment' : 'payments'}`}
+                  {sumOf(todayTx, 'income') > 0 && <span className="pos"> · +<Money value={sumOf(todayTx, 'income')} short /> in</span>}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">This week</div>
+                <div className="stat-value"><Money value={weekOut} short /></div>
+                <div className="stat-foot">
+                  {sumOf(thisWeek, 'income') > 0 ? <span className="pos">+<Money value={sumOf(thisWeek, 'income')} short /> in</span> : 'Nothing in'}
+                </div>
+              </div>
             </div>
-            <p className="card-sub" style={{ margin: '0 0 6px' }}>Where the money went</p>
+            <p className="week-compare">
+              {compareLine ?? (
+                <>
+                  <span className={diff > 0 ? 'warn' : 'pos'}>
+                    <Money value={Math.abs(diff)} short /> {diff > 0 ? 'more' : 'less'}
+                  </span>{' '}
+                  than last week by {dayName} (<Money value={lastOut} short />).
+                </>
+              )}
+            </p>
+            <p className="card-sub" style={{ margin: '4px 0 6px' }}>Where this week's money went</p>
             {catRows.length === 0 ? (
-              <div className="empty"><strong>No spending yet this period</strong>Your categories will show up here as you add expenses.</div>
+              <div className="empty"><strong>No spending this week yet</strong>Your categories will show up here as you add expenses.</div>
             ) : (
-              catRows.slice(0, 7).map(([cid, amt]) => {
+              catRows.slice(0, 6).map(([cid, amt]) => {
                 const c = catMap.get(cid);
-                const b = budgets[cid];
                 return (
-                  <Link key={cid} href={`/history?cat=${cid}`} className="cat-line">
+                  <Link key={cid} href={`/history?cat=${cid}&from=${weekStart}`} className="cat-line">
                     <span className="bubble" style={{ background: `${c?.color ?? '#9CC8F2'}2e` }} aria-hidden>{c?.emoji ?? '✨'}</span>
                     <span>
                       <span className="cat-line-top">
                         <span>{c?.name ?? 'No category'}</span>
-                        <span>
-                          <Money value={amt} />
-                          {b ? <span className="faint" style={{ fontWeight: 600 }}> of {rpShort(b)}</span> : null}
-                        </span>
+                        <span><Money value={amt} /></span>
                       </span>
                       <span className="bar">
-                        <span style={{ width: `${Math.max(3, (b ? Math.min(1, amt / b) : amt / max) * 100)}%`, background: b && amt > b ? 'var(--rose)' : c?.color ?? 'var(--mist)' }} />
+                        <span style={{ width: `${Math.max(3, (amt / max) * 100)}%`, background: c?.color ?? 'var(--mist)' }} />
                       </span>
                     </span>
                   </Link>

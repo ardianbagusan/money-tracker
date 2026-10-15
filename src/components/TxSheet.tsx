@@ -8,6 +8,8 @@ import { ICamera, IPlus, IReceipt, ITrash, IX } from './icons';
 import { deleteTransactions, loadTransaction, saveTransaction, type TxPayload } from '@/app/actions';
 import { groupDigits, rp } from '@/lib/format';
 import { compressImage } from '@/lib/image';
+import { parseReceipt } from '@/lib/receipt';
+import { guessCategory } from '@/lib/parse';
 import type { Item, ItemKind, TxType } from '@/lib/types';
 
 const TYPES: { v: TxType; label: string }[] = [
@@ -52,6 +54,9 @@ export function TxSheet({ request }: { request: SheetRequest }) {
   const [hadPhoto, setHadPhoto] = useState(false);
   const [recurringNote, setRecurringNote] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
+  const [scan, setScan] = useState<{ p: number; stage: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ ok: boolean; text: string; summary: string; detail?: string } | null>(null);
 
   useEffect(() => {
     if (request.kind !== 'edit') return;
@@ -107,6 +112,51 @@ export function TxSheet({ request }: { request: SheetRequest }) {
       setPhoto({ action: 'set', dataUrl, preview: dataUrl });
     } catch (e: any) {
       setError(e.message);
+    }
+  }
+
+  /** Photo -> read text on the device -> fill items, total, title and date. */
+  async function onScan(f?: File) {
+    if (!f) return;
+    setError('');
+    setScanResult(null);
+    setShowReceipt(true);
+    onPhoto(f);
+    setScan({ p: 0, stage: 'Preparing photo' });
+    try {
+      const { readImageText } = await import('@/lib/ocr');
+      const text = await readImageText(f, (p, stage) => setScan({ p, stage }));
+      const r = parseReceipt(text);
+      if (r.items.length === 0 && r.total === null) {
+        setScanResult({ ok: false, text, summary: "Couldn't find any prices on this photo.", detail: 'Try again with the receipt flat, straight on, filling the frame, in good light. Or type the lines below.' });
+        return;
+      }
+      if (r.items.length) setItems(r.items);
+      const amt = r.total ?? r.linesSum;
+      if (amt > 0 && !digits(amount)) setAmount(groupDigits(amt));
+      if (!title.trim() && r.merchant) setTitle(r.merchant.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()));
+      if (!categoryId) {
+        const c = guessCategory(`${r.merchant} ${r.items.map((i) => i.name).join(' ')}`, categories, 'expense');
+        if (c) setCategoryId(c.id);
+      }
+      if (r.date && !isEdit) {
+        const diff = Math.abs(Date.parse(r.date) - Date.parse(now));
+        if (diff < 400 * 86400000) setAt(r.date);
+      }
+      const n = r.items.filter((i) => i.kind === 'item').length;
+      const extras = (['tax', 'fee', 'discount'] as ItemKind[]).filter((k) => r.items.some((i) => i.kind === k)).map((k) => KIND_LABEL[k].toLowerCase());
+      const found = `Found ${n} ${n === 1 ? 'item' : 'items'}${extras.length ? ` plus ${extras.join(', ')}` : ''}${r.total !== null ? `, total ${rp(r.total)}` : ''}.`;
+      const detail = r.total === null
+        ? 'No total line was found, so the amount is the sum of the lines. Check it.'
+        : r.matches
+          ? 'The lines add up to the total. Still worth a quick look at the names.'
+          : `The lines add up to ${rp(r.linesSum)}, ${rp(Math.abs(r.total - r.linesSum))} ${r.linesSum > r.total ? 'more' : 'less'} than the total. Some lines were probably misread. Fix them below.`;
+      setScanResult({ ok: r.matches, text, summary: found, detail });
+    } catch (e: any) {
+      console.error(e);
+      setScanResult({ ok: false, text: '', summary: 'The receipt reader could not start.', detail: `${e?.message || e}. Check your connection (the first scan downloads the reader) and try again.` });
+    } finally {
+      setScan(null);
     }
   }
 
@@ -213,6 +263,33 @@ export function TxSheet({ request }: { request: SheetRequest }) {
             />
           </label>
 
+          <input ref={scanRef} type="file" accept="image/*" hidden onChange={(e) => { onScan(e.target.files?.[0]); e.target.value = ''; }} />
+          {type === 'expense' && !isEdit && !scan && !scanResult && (
+            <button type="button" className="btn scan-btn" onClick={() => scanRef.current?.click()}>
+              <IReceipt /> Scan a receipt
+            </button>
+          )}
+          {scan && (
+            <div className="scan-progress glass" role="status" aria-live="polite">
+              <div className="cat-line-top" style={{ fontSize: 14 }}><span>🔍 {scan.stage}…</span><span className="num">{Math.round(scan.p * 100)}%</span></div>
+              <span className="bar"><span style={{ width: `${Math.max(4, scan.p * 100)}%`, background: 'var(--ember)', transition: 'width .3s' }} /></span>
+              <p className="faint" style={{ margin: '8px 0 0', fontSize: 12.5 }}>Read on this phone; the photo is not sent anywhere to be read. The first scan downloads the reader (about 9 MB).</p>
+            </div>
+          )}
+          {scanResult && (
+            <div className={`scan-result ${scanResult.ok ? 'ok' : 'check'}`}>
+              <strong>{scanResult.ok ? '✅' : '⚠️'} {scanResult.summary}</strong>
+              {scanResult.detail && <span>{scanResult.detail}</span>}
+              {scanResult.text && (
+                <details>
+                  <summary>Text the reader saw</summary>
+                  <pre>{scanResult.text}</pre>
+                </details>
+              )}
+              <button type="button" className="link link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => scanRef.current?.click()}>Scan another photo</button>
+            </div>
+          )}
+
           {type !== 'adjust' && (
             <label className="field">
               <span>{type === 'transfer' ? 'Note title (optional)' : 'What was it?'}</span>
@@ -317,6 +394,11 @@ export function TxSheet({ request }: { request: SheetRequest }) {
                   </div>
 
                   <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onPhoto(e.target.files?.[0])} />
+                  {!scan && (
+                    <button type="button" className="btn" style={{ width: '100%', marginBottom: 10 }} onClick={() => scanRef.current?.click()}>
+                      <IReceipt /> {items.length ? 'Scan again (replaces the lines)' : 'Scan a receipt to fill the lines'}
+                    </button>
+                  )}
                   {photo.action === 'set' && photo.preview ? (
                     <ReceiptThumb src={photo.preview} onRemove={() => setPhoto({ action: hadPhoto ? 'remove' : 'keep' })} />
                   ) : hadPhoto && photo.action === 'keep' && id ? (

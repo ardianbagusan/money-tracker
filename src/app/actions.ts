@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db, type Sql } from '@/lib/db';
+import { randomBytes } from 'crypto';
 import { requireAuth } from '@/lib/auth';
 import { COOKIE } from '@/lib/session';
 import { advance } from '@/lib/dates';
@@ -292,4 +293,42 @@ export async function signOut() {
   const store = await cookies();
   store.delete(COOKIE);
   redirect('/login');
+}
+
+// Email imports
+export type ImportDecision = { id: number; type: 'expense' | 'income'; amount: number; title: string; category_id: number | null; wallet_id: number | null; occurred_at: string };
+
+export async function addImports(list: ImportDecision[]) {
+  return guard(async (sql) => {
+    for (const d of list) {
+      const amount = Math.round(Number(d.amount) || 0);
+      if (amount <= 0) throw new Error('Every item needs an amount above zero.');
+      if (!d.wallet_id) throw new Error('Pick a wallet for every item.');
+      if (!isLocalTime(d.occurred_at)) throw new Error('Invalid date.');
+      // Claim the email first so a double tap can't add it twice.
+      const [claimed] = await sql`update email_imports set status = 'added' where id = ${int(d.id)} and status in ('pending','unreadable') returning id`;
+      if (!claimed) continue;
+      const [t] = await sql`insert into transactions (type, amount, title, category_id, wallet_id, occurred_at, source)
+        values (${d.type === 'income' ? 'income' : 'expense'}, ${amount}, ${(d.title || '').trim().slice(0, 120)},
+          ${int(d.category_id)}, ${int(d.wallet_id)}, ${d.occurred_at}::text::timestamp, 'email') returning id`;
+      await sql`update email_imports set transaction_id = ${t.id} where id = ${claimed.id}`;
+    }
+    return { ok: true };
+  });
+}
+
+export async function dismissImports(ids: number[]) {
+  return guard(async (sql) => {
+    const clean = ids.map(Number).filter(Boolean);
+    if (clean.length) await sql`update email_imports set status = 'dismissed' where id in ${sql(clean)} and status in ('pending','unreadable')`;
+    return { ok: true };
+  });
+}
+
+/** Makes a new Gmail import key; the old script stops working until it gets the new one. */
+export async function newImportKey() {
+  return guard(async (sql) => {
+    await sql`update settings set value = ${randomBytes(24).toString('base64url')} where key = 'import_key'`;
+    return { ok: true };
+  });
 }

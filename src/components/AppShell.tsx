@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useApp } from './AppContext';
-import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IMoney, IPlus, IRun, ISmile, IWallet } from './icons';
+import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IMoney, IPlus, IRun, ISmile, IWallet, IMail } from './icons';
 import { TxSheet } from './TxSheet';
 import { ChooserSheet, EventSheet, JournalSheet, WorkoutSheet } from './LifeSheets';
 import { signOut } from '@/app/actions';
@@ -15,6 +15,7 @@ const MONEY = [
   { href: '/reports', label: 'Reports', icon: IChart },
   { href: '/budgets', label: 'Budgets', icon: IGauge },
   { href: '/wallets', label: 'Wallets & goals', icon: IWallet },
+  { href: '/imports', label: 'From email', icon: IMail },
 ];
 const LIFE = [
   { href: '/journal', label: 'Journal', icon: IBook },

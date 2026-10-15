@@ -2,7 +2,7 @@ import 'server-only';
 import { cache } from 'react';
 import { db, getSettings, type Sql } from './db';
 import { advance, nowLocal } from './dates';
-import type { CalEvent, Category, Goal, Item, JournalEntry, JournalTag, Recurring, Tx, Wallet, Workout } from './types';
+import type { CalEvent, EmailImport, Category, Goal, Item, JournalEntry, JournalTag, Recurring, Tx, Wallet, Workout } from './types';
 
 const TX_COLS = `t.id, t.type, t.amount, t.title, t.note, t.category_id, t.wallet_id, t.to_wallet_id,
   to_char(t.occurred_at, 'YYYY-MM-DD"T"HH24:MI') as occurred_at, t.source, t.recurring_id,
@@ -183,4 +183,20 @@ export async function getDailySpending(from: string, to: string): Promise<Record
   const rows = await sql`select to_char(occurred_at, 'YYYY-MM-DD') as d, sum(amount)::bigint as s from transactions
     where type = 'expense' and occurred_at >= ${from}::text::timestamp and occurred_at < ${to}::text::timestamp group by 1`;
   return Object.fromEntries(rows.map((r) => [r.d, r.s]));
+}
+
+/** Emails waiting for a decision. maybe_dup: a transaction with the same amount within a day already exists. */
+export async function getEmailImports(): Promise<EmailImport[]> {
+  const sql = await db();
+  return sql<EmailImport[]>`select e.id, e.sender, e.subject, e.snippet, to_char(e.received_at, 'YYYY-MM-DD"T"HH24:MI') as received_at,
+      e.type, e.amount, e.title, e.category_id, e.wallet_id, e.source_name, e.hint, e.status,
+      (e.amount is not null and exists(select 1 from transactions t where t.amount = e.amount and t.type = e.type
+        and t.occurred_at between e.received_at - interval '1 day' and e.received_at + interval '1 day')) as maybe_dup
+    from email_imports e where e.status in ('pending', 'unreadable') order by e.received_at desc limit 200`;
+}
+
+export async function getEmailImportCount() {
+  const sql = await db();
+  const [r] = await sql`select count(*)::int as n from email_imports where status = 'pending'`;
+  return r.n as number;
 }

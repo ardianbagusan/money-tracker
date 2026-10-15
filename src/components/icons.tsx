@@ -61,3 +61,4 @@ export const IRun = emoji('🏃');
 export const ITennis = emoji('🎾');
 export const IPulse = emoji('💓');
 export const IMoney = emoji('💰');
+export const IMail = emoji('📬');

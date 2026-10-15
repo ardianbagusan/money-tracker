@@ -235,6 +235,25 @@ create table if not exists event_alerts_sent (
   sent_at timestamptz not null default now(),
   primary key (event_id, occurrence_at)
 );
+create table if not exists email_imports (
+  id serial primary key,
+  message_id text not null unique,
+  sender text not null default '',
+  subject text not null default '',
+  snippet text not null default '',
+  received_at timestamp not null,
+  type text check (type in ('expense','income')),
+  amount bigint,
+  title text not null default '',
+  category_id int references categories(id) on delete set null,
+  wallet_id int references wallets(id) on delete set null,
+  source_name text not null default '',
+  hint text not null default '',
+  status text not null default 'pending' check (status in ('pending','added','dismissed','unreadable')),
+  transaction_id int references transactions(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists email_imports_status_idx on email_imports (status, received_at desc);
 create table if not exists push_subscriptions (
   endpoint text primary key,
   p256dh text not null,
@@ -299,6 +318,8 @@ async function setup(sql: Sql) {
   }
   const cronKey = randomBytes(24).toString('base64url');
   await sql`insert into settings (key, value) values ('cron_key', ${cronKey}) on conflict do nothing`;
+  const importKey = randomBytes(24).toString('base64url');
+  await sql`insert into settings (key, value) values ('import_key', ${importKey}) on conflict do nothing`;
 }
 
 /** Creates the user's database if needed, then tables and starter data. Runs once per server instance. */
@@ -348,7 +369,7 @@ export async function getSettings(sqlArg?: Sql): Promise<{ timezone: string; per
 }
 
 /** Secret values that never leave the server. */
-export async function getSecretSetting(key: 'vapid_private' | 'vapid_public' | 'cron_key', sqlArg?: Sql) {
+export async function getSecretSetting(key: 'vapid_private' | 'vapid_public' | 'cron_key' | 'import_key', sqlArg?: Sql) {
   const sql = sqlArg ?? (await db());
   const [r] = await sql`select value from settings where key = ${key}`;
   return (r?.value as string) || '';

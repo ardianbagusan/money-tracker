@@ -8,6 +8,8 @@ export async function proxy(req: NextRequest) {
   if (pathname === '/login' || pathname === '/robots.txt') return NextResponse.next();
   // The reminder pinger has its own secret key, checked inside the route.
   if (pathname === '/api/cron/reminders') return NextResponse.next();
+  // Gmail import script: its own secret key, checked inside the route.
+  if (pathname === '/api/import/email') return NextResponse.next();
 
   const ok = await verifyToken(req.cookies.get(COOKIE)?.value);
   if (ok) return NextResponse.next();
@@ -23,5 +25,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|art/|fonts/|favicon.ico|icon.svg|icon-192.png|icon-512.png|apple-icon.png|manifest.webmanifest|sw.js).*)'],
+  matcher: ['/((?!_next/static|_next/image|art/|fonts/|favicon.ico|icon.svg|icon-192.png|icon-512.png|apple-icon.png|manifest.webmanifest|sw.js|ocr/).*)'],
 };

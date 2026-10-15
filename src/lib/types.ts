@@ -104,3 +104,20 @@ export type CalEvent = {
   repeat: Repeat;
   alert_minutes: number | null;
 };
+
+export type EmailImport = {
+  id: number;
+  sender: string;
+  subject: string;
+  snippet: string;
+  received_at: string;
+  type: 'expense' | 'income' | null;
+  amount: number | null;
+  title: string;
+  category_id: number | null;
+  wallet_id: number | null;
+  source_name: string;
+  hint: string;
+  status: 'pending' | 'added' | 'dismissed' | 'unreadable';
+  maybe_dup: boolean;
+};

@@ -2,12 +2,10 @@ import { SectionTabs } from '@/components/AppShell';
 import Link from 'next/link';
 import { getBase, getTransactions, getYearByMonth } from '@/lib/data';
 import { addMonths, daysInMonth, monthName, ymd } from '@/lib/dates';
-import { rpShort } from '@/lib/format';
-import { OTHER_COLOR } from '@/lib/palette';
+import { OTHER_COLOR, foldSlices, rpShort, type Slice } from '@/lib/format';
 import type { Category, Tx } from '@/lib/types';
 import { Money } from '@/components/Money';
 import { Donut, Heatmap, MonthBars, Sankey, SliceLegend, TrendLine, type SankeyInput } from '@/components/charts';
-import { foldSlices, type Slice } from '@/lib/slices';
 import { IChevL, IChevR } from '@/components/icons';
 
 function slicesFor(out: Tx[], cats: Map<number, Category>, from: string, toIncl: string): Slice[] {

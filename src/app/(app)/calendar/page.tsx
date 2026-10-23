@@ -1,6 +1,5 @@
 import { getBase, getDailySpending, getEvents, getJournal, getWorkouts } from '@/lib/data';
-import { addDays, addMonths, daysInMonth, ymd } from '@/lib/dates';
-import { occurrences } from '@/lib/recur';
+import { addDays, addMonths, daysInMonth, occurrences, ymd } from '@/lib/dates';
 import { CalendarView, type DayInfo } from './CalendarView';
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Record<string, string>> }) {

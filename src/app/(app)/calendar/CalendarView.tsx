@@ -8,7 +8,7 @@ import { PushSetup } from '@/components/PushSetup';
 import { Money } from '@/components/Money';
 import { IBell, IBook, IChevL, IChevR, IPlus, IRun } from '@/components/icons';
 import { dayLabel, monthName, shortDate } from '@/lib/dates';
-import { moodColor, moodOf } from '@/lib/mood';
+import { moodColor, moodOf } from '@/lib/life';
 import type { CalEvent, JournalEntry, Workout } from '@/lib/types';
 
 export type DayInfo = { events: { id: number; occ: string }[]; moods: number[]; workouts: number[]; spend: number };

@@ -1,4 +1,4 @@
-import { requireAuth } from '@/lib/auth';
+import { requireAuth } from '@/lib/db';
 import { getBase, getTransactions } from '@/lib/data';
 import { filterFromParams } from '@/lib/filters';
 

@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { getBase, getDailySpending, getJournal, getWorkouts } from '@/lib/data';
 import { addDays, monthName, weekday } from '@/lib/dates';
-import { MOODS, moodColor, moodOf, quadrant } from '@/lib/mood';
+import { MOODS, moodColor, moodOf, quadrant } from '@/lib/life';
 import { rpShort } from '@/lib/format';
 import { SectionTabs } from '@/components/AppShell';
-import { MoodTrend } from '@/components/MoodTrend';
+import { MoodTrend } from '@/components/charts';
 import { OpenSheet } from '@/components/LifeBits';
 import type { JournalEntry } from '@/lib/types';
 

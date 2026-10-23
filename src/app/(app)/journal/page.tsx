@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getBase, getJournal, getWorkouts } from '@/lib/data';
 import { addDays, shortDate } from '@/lib/dates';
-import { MOODS, moodColor, moodOf } from '@/lib/mood';
+import { MOODS, moodColor, moodOf } from '@/lib/life';
 import { SectionTabs } from '@/components/AppShell';
 import { LifeFeed, OpenSheet } from '@/components/LifeBits';
 import { IBook, IRun, ITennis } from '@/components/icons';

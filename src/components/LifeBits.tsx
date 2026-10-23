@@ -4,8 +4,7 @@ import type { ReactNode } from 'react';
 import { useApp, type SheetRequest } from './AppContext';
 import { IBell, IRepeat, IRun, ITennis } from './icons';
 import { dayLabel } from '@/lib/dates';
-import { ENERGY, moodOf } from '@/lib/mood';
-import { EFFORT, fmtDuration, fmtHours, fmtPace, km, pace } from '@/lib/sport';
+import { EFFORT, ENERGY, fmtDuration, fmtHours, fmtPace, km, moodOf, pace } from '@/lib/life';
 import type { CalEvent, JournalEntry, Workout } from '@/lib/types';
 
 /** A button that opens one of the app's sheets. Lets server pages open forms. */

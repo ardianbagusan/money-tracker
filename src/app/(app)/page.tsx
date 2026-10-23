@@ -1,14 +1,11 @@
 import Link from 'next/link';
-import { currentUser } from '@/lib/db';
-import { getBase, getBudgets, getEmailImportCount, getEvents, getJournal, getTransactions, getWorkouts } from '@/lib/data';
-import { addDays, dayLabel, greeting, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
-import { MOODS, moodOf } from '@/lib/mood';
-import { occurrences } from '@/lib/recur';
-import { fmtHours, km } from '@/lib/sport';
+import { currentUser, getLifeSettings } from '@/lib/db';
+import { getBase, getBudgets, getEmailImportCount, getEvents, getFoodMoments, getJournal, getTransactions, getWorkouts } from '@/lib/data';
+import { addDays, dayLabel, greeting, occurrences, partOfDay, periodFor, shortDate, weekday } from '@/lib/dates';
+import { MOODS, fmtHours, km, moodOf } from '@/lib/life';
 import { OpenSheet } from '@/components/LifeBits';
-import { Money } from '@/components/Money';
+import { HideToggle, Money } from '@/components/Money';
 import { QuickAdd } from '@/components/QuickAdd';
-import { HideToggle } from '@/components/HideToggle';
 import { TxList } from '@/components/TxList';
 import { IBell, IChevR, IGear } from '@/components/icons';
 
@@ -22,7 +19,7 @@ export default async function Overview() {
   const dow = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7; // 0 = Monday
   const weekStart = addDays(today, -dow);
   const lastWeekStart = addDays(weekStart, -7);
-  const [periodTx, weekTx, recent, budgets, journal7, workouts7, events, importCount] = await Promise.all([
+  const [periodTx, weekTx, recent, budgets, journal7, workouts7, events, importCount, foodToday, life] = await Promise.all([
     getTransactions({ from: per.from, to: per.to, types: ['expense', 'income'] }),
     getTransactions({ from: lastWeekStart, to: addDays(today, 1), types: ['expense', 'income'] }),
     getTransactions({ limit: 6 }),
@@ -31,7 +28,11 @@ export default async function Overview() {
     getWorkouts(weekAgo, addDays(today, 1)),
     getEvents(),
     getEmailImportCount(),
+    getFoodMoments(today, addDays(today, 1)),
+    getLifeSettings(),
   ]);
+  const foodKcal = foodToday.reduce((a, m) => a + m.entries.reduce((b, e) => b + e.kcal, 0), 0);
+  const foodStickers = foodToday.flatMap((m) => m.entries.filter((e) => e.cutout)).slice(0, 6);
   const todayEntries = journal7.filter((e) => e.occurred_at.startsWith(today));
   const todayMood = todayEntries.length ? todayEntries.reduce((s, e) => s + e.mood, 0) / todayEntries.length : 0;
   const weekMood = journal7.length ? journal7.reduce((s, e) => s + e.mood, 0) / journal7.length : 0;
@@ -68,7 +69,7 @@ export default async function Overview() {
 
   const pod = partOfDay(now);
   // The sky follows today's mood once it's logged; before that, the time of day.
-  const heroImg = todayMood ? `/art/mood-${Math.round(todayMood)}.jpg` : `/art/hero-${pod}.jpg`;
+  const heroImg = todayMood ? `/art/mood-${Math.round(todayMood)}.jpg` : pod === 'day' ? '/art/mood-4.jpg' : `/art/hero-${pod}.jpg`;
   const heroDark = todayMood ? Math.round(todayMood) <= 2 : pod === 'night';
   const dayName = weekday(today);
   const compareLine =
@@ -240,6 +241,27 @@ export default async function Overview() {
               <div className="stat"><div className="stat-label">Running</div><div className="stat-value num">{km(runs7.reduce((s, r) => s + (r.distance_m ?? 0), 0), 1)} km</div></div>
               <div className="stat"><div className="stat-label">Tennis</div><div className="stat-value num">{tennis7.length ? fmtHours(tennis7.reduce((s, t) => s + t.duration_sec, 0)) : '–'}</div></div>
             </div>
+          </section>
+
+          <section className="glass card">
+            <div className="card-head">
+              <div>
+                <h2 className="card-title">Today you ate</h2>
+                <p className="card-sub">{foodToday.length ? `${foodToday.length} ${foodToday.length === 1 ? 'meal' : 'meals'}` : 'Nothing logged yet'}</p>
+              </div>
+              <Link className="link" href="/food">Food</Link>
+            </div>
+            <div className="cat-line-top" style={{ fontSize: 15 }}>
+              <span><strong className="num" style={{ fontSize: 22 }}>{foodKcal.toLocaleString('id-ID')}</strong> <span className="muted">of {life.foodGoalKcal.toLocaleString('id-ID')} kcal</span></span>
+              <OpenSheet req={{ kind: 'meal' }} className="btn" label="Log a meal">🍜 Log</OpenSheet>
+            </div>
+            <span className="bar" style={{ marginTop: 8 }}><span style={{ width: `${Math.max(2, Math.min(100, (foodKcal / life.foodGoalKcal) * 100))}%`, background: foodKcal > life.foodGoalKcal ? 'var(--rose)' : 'var(--ember)' }} /></span>
+            {foodStickers.length > 0 && (
+              <Link href="/food" className="home-stickers" aria-label="Open today's food canvas">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {foodStickers.map((e) => <img key={e.id} src={`/api/image/cutout/${e.cutout!.id}`} alt={e.name} />)}
+              </Link>
+            )}
           </section>
 
           <section className="glass card">

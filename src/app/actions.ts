@@ -3,9 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { db, type Sql } from '@/lib/db';
+import { db, requireAuth, type Sql } from '@/lib/db';
 import { randomBytes } from 'crypto';
-import { requireAuth } from '@/lib/auth';
 import { COOKIE } from '@/lib/session';
 import { advance } from '@/lib/dates';
 import type { Draft, Item } from '@/lib/types';
@@ -242,8 +241,12 @@ export async function saveBudgets(entries: { category_id: number; amount: number
   });
 }
 
-export async function saveSetting(key: 'timezone' | 'period_start', value: string) {
+export async function saveSetting(key: 'timezone' | 'period_start' | 'import_wallet', value: string) {
   return guard(async (sql) => {
+    if (key === 'import_wallet') {
+      const [w] = await sql`select id from wallets where id = ${Number(value) || 0} and not archived`;
+      if (!w) throw new Error('Pick one of your wallets.');
+    }
     if (key === 'period_start') {
       const n = Number(value);
       if (!(n >= 1 && n <= 28)) throw new Error('Pick a day between 1 and 28.');

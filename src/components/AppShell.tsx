@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useApp } from './AppContext';
-import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IMoney, IPlus, IRun, ISmile, IWallet, IMail } from './icons';
+import { IBook, ICalendar, IChart, IGauge, IGear, IHome, IList, ILogout, IMoney, IPlus, IRun, ISmile, IWallet, IMail, IFood, IStocks } from './icons';
 import { TxSheet } from './TxSheet';
 import { ChooserSheet, EventSheet, JournalSheet, WorkoutSheet } from './LifeSheets';
 import { signOut } from '@/app/actions';
+import { MealSheet } from './FoodSheets';
+import { TradeSheet } from './StockSheets';
 
 const MONEY = [
   { href: '/', label: 'Overview', icon: IHome },
@@ -15,16 +17,18 @@ const MONEY = [
   { href: '/reports', label: 'Reports', icon: IChart },
   { href: '/budgets', label: 'Budgets', icon: IGauge },
   { href: '/wallets', label: 'Wallets & goals', icon: IWallet },
+  { href: '/stocks', label: 'Stock journal', icon: IStocks },
   { href: '/imports', label: 'From email', icon: IMail },
 ];
 const LIFE = [
   { href: '/journal', label: 'Journal', icon: IBook },
   { href: '/journal/insights', label: 'Mood insights', icon: ISmile },
+  { href: '/food', label: 'Food', icon: IFood },
   { href: '/sports', label: 'Sports', icon: IRun },
   { href: '/calendar', label: 'Calendar', icon: ICalendar },
 ];
-const MONEY_PATHS = ['/history', '/reports', '/budgets', '/wallets'];
-const LIFE_PATHS = ['/journal', '/sports'];
+const MONEY_PATHS = ['/history', '/reports', '/budgets', '/wallets', '/stocks'];
+const LIFE_PATHS = ['/journal', '/sports', '/food'];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
@@ -97,6 +101,10 @@ function SheetHost() {
       return <WorkoutSheet sport={sheet.sport} workout={sheet.workout} date={sheet.date} />;
     case 'event':
       return <EventSheet event={sheet.event} date={sheet.date} />;
+    case 'meal':
+      return <MealSheet moment={sheet.moment} date={sheet.date} />;
+    case 'trade':
+      return <TradeSheet tradeId={sheet.tradeId} close={sheet.close} />;
     default:
       return <TxSheet request={sheet} />;
   }
@@ -107,8 +115,8 @@ export function SectionTabs({ section }: { section: 'money' | 'life' }) {
   const path = usePathname();
   const items =
     section === 'money'
-      ? [{ href: '/history', label: 'History' }, { href: '/reports', label: 'Reports' }, { href: '/budgets', label: 'Budgets' }, { href: '/wallets', label: 'Wallets' }]
-      : [{ href: '/journal', label: 'Journal' }, { href: '/journal/insights', label: 'Mood insights' }, { href: '/sports', label: 'Sports' }];
+      ? [{ href: '/history', label: 'History' }, { href: '/reports', label: 'Reports' }, { href: '/budgets', label: 'Budgets' }, { href: '/wallets', label: 'Wallets' }, { href: '/stocks', label: 'Stocks' }]
+      : [{ href: '/journal', label: 'Journal' }, { href: '/journal/insights', label: 'Mood' }, { href: '/food', label: 'Food' }, { href: '/sports', label: 'Sports' }];
   return (
     <nav className="section-tabs" aria-label={section === 'money' ? 'Money sections' : 'Life sections'}>
       {items.map((i) => (

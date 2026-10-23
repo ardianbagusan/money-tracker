@@ -1,8 +1,9 @@
+import type { Worker } from 'tesseract.js';
+
 // Reads the text on a receipt photo inside the browser (Tesseract.js).
 // Nothing is sent anywhere: the reader and language files are served by this app
 // and the photo is processed on the device. The first run downloads about 9 MB
 // (once; the browser keeps the language files afterwards).
-import type { Worker } from 'tesseract.js';
 
 let workerPromise: Promise<Worker> | null = null;
 let progressCb: ((p: number, stage: string) => void) | null = null;
@@ -13,7 +14,7 @@ function getWorker() {
       const { createWorker } = await import('tesseract.js');
       const w = await createWorker(['ind', 'eng'], 1, {
         workerPath: '/ocr/worker.min.js',
-        corePath: '/ocr',
+        corePath: '/ocr/tesseract-core-simd-lstm.wasm.js', // one core file (WebAssembly SIMD: iOS 16.4+, current Chrome/Android)
         langPath: '/ocr/lang',
         workerBlobURL: false,
         logger: (m: { status: string; progress: number }) => {
@@ -90,5 +91,33 @@ export async function readImageText(file: Blob, onProgress?: (p: number, stage: 
     return data.text || '';
   } finally {
     progressCb = null;
+  }
+}
+
+// Shrinks a receipt photo in the browser before upload: max 1400px, JPEG.
+// A phone photo of 3–5 MB usually ends up around 150–300 KB.
+export async function compressImage(file: File, maxSide = 1400, quality = 0.72): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('Could not read that image.'));
+      i.src = url;
+    });
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not process that image.');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }

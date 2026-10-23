@@ -254,6 +254,83 @@ create table if not exists email_imports (
   created_at timestamptz not null default now()
 );
 create index if not exists email_imports_status_idx on email_imports (status, received_at desc);
+create table if not exists food_items (
+  id serial primary key,
+  name text not null,
+  aliases text not null default '',
+  kind text not null default 'food' check (kind in ('food','drink','other')),
+  portion_g int not null default 100,
+  kcal_100g numeric not null default 0,
+  protein_100g numeric not null default 0,
+  carbs_100g numeric not null default 0,
+  fat_100g numeric not null default 0,
+  source text not null default 'custom',
+  uses int not null default 0,
+  archived boolean not null default false
+);
+create table if not exists food_moments (
+  id serial primary key,
+  occurred_at timestamp not null,
+  place text not null default '',
+  people text[] not null default '{}',
+  rating smallint,
+  favorite boolean not null default false,
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists food_moments_at_idx on food_moments (occurred_at desc);
+create table if not exists food_entries (
+  id serial primary key,
+  moment_id int not null references food_moments(id) on delete cascade,
+  food_item_id int references food_items(id) on delete set null,
+  name text not null,
+  kind text not null default 'food' check (kind in ('food','drink','other')),
+  grams int,
+  kcal int not null default 0,
+  protein_g numeric not null default 0,
+  carbs_g numeric not null default 0,
+  fat_g numeric not null default 0,
+  tags text[] not null default '{}',
+  sort int not null default 0
+);
+create table if not exists food_cutouts (
+  id serial primary key,
+  entry_id int not null unique references food_entries(id) on delete cascade,
+  image bytea not null,
+  width int not null,
+  height int not null,
+  method text not null default 'lasso' check (method in ('tap','lasso','whole')),
+  outline jsonb not null default '[]',
+  canvas jsonb not null default '{"x":0.5,"y":0.5,"rot":0,"scale":1,"z":0}'
+);
+create table if not exists trades (
+  id serial primary key,
+  ticker text not null,
+  status text not null default 'open' check (status in ('open','closed')),
+  setup text not null default '',
+  timeframe text not null default '',
+  stop numeric,
+  target numeric,
+  tags text[] not null default '{}',
+  context text[] not null default '{}',
+  emotion_entry text not null default '',
+  emotion_exit text not null default '',
+  rationale text not null default '',
+  review text not null default '',
+  followed_plan boolean,
+  opened_at timestamp not null,
+  closed_at timestamp,
+  created_at timestamptz not null default now()
+);
+create table if not exists trade_fills (
+  id serial primary key,
+  trade_id int not null references trades(id) on delete cascade,
+  side text not null check (side in ('buy','sell')),
+  price numeric not null,
+  lots int not null,
+  fee bigint not null default 0,
+  filled_at timestamp not null
+);
 create table if not exists push_subscriptions (
   endpoint text primary key,
   p256dh text not null,
@@ -283,6 +360,75 @@ const INCOME_SEED: [string, string, string, string][] = [
   ['Other income', '💰', '#3987e5', 'transfer masuk,refund,cashback,terima,dapat'],
 ];
 
+// name, aliases, kind, typical portion (g or ml), kcal, protein g, carbs g, fat g — for that portion.
+// Rough averages for common Indonesian and everyday food; real dishes vary a lot. Edit them in the app.
+const FOOD_SEED: [string, string, 'food' | 'drink' | 'other', number, number, number, number, number][] = [
+  ['Nasi putih', 'rice,nasi', 'food', 150, 195, 4, 43, 0.4],
+  ['Nasi goreng', 'fried rice', 'food', 250, 420, 12, 58, 15],
+  ['Nasi uduk', '', 'food', 200, 360, 7, 55, 12],
+  ['Nasi kuning', '', 'food', 200, 340, 7, 55, 10],
+  ['Nasi padang', 'padang', 'food', 450, 750, 30, 85, 32],
+  ['Nasi campur', 'mixed rice', 'food', 400, 650, 25, 80, 25],
+  ['Bubur ayam', 'porridge', 'food', 400, 370, 15, 55, 10],
+  ['Mie goreng', 'fried noodles', 'food', 250, 450, 11, 60, 18],
+  ['Mie ayam', 'chicken noodles', 'food', 300, 420, 18, 55, 14],
+  ['Indomie goreng', 'instant noodles,mie instan', 'food', 85, 380, 8, 52, 15],
+  ['Indomie kuah', 'instant noodle soup', 'food', 75, 350, 7, 48, 14],
+  ['Kwetiau goreng', 'kway teow', 'food', 300, 500, 14, 70, 18],
+  ['Bakso', 'meatball soup', 'food', 350, 300, 18, 25, 14],
+  ['Soto ayam', 'soto', 'food', 350, 310, 20, 22, 15],
+  ['Sate ayam', 'satay', 'food', 200, 450, 38, 12, 28],
+  ['Ayam goreng', 'fried chicken', 'food', 120, 300, 24, 6, 20],
+  ['Ayam geprek', '', 'food', 200, 520, 30, 25, 33],
+  ['Ayam bakar', 'grilled chicken', 'food', 150, 280, 30, 6, 15],
+  ['Rendang', 'beef', 'food', 100, 195, 20, 5, 11],
+  ['Gado-gado', 'gado gado,salad peanut', 'food', 300, 400, 15, 30, 25],
+  ['Pecel', '', 'food', 250, 350, 13, 30, 20],
+  ['Ketoprak', '', 'food', 350, 450, 15, 55, 18],
+  ['Capcay', 'cap cay,stir fry vegetables', 'food', 250, 200, 8, 15, 12],
+  ['Pempek', 'empek', 'food', 200, 380, 14, 55, 11],
+  ['Siomay', '', 'food', 250, 360, 18, 35, 16],
+  ['Batagor', '', 'food', 200, 420, 16, 35, 24],
+  ['Martabak manis', 'terang bulan', 'food', 100, 330, 6, 45, 14],
+  ['Martabak telur', '', 'food', 100, 250, 10, 20, 15],
+  ['Gorengan', 'bakwan,pisang goreng,risoles', 'food', 40, 110, 2, 10, 7],
+  ['Tempe goreng', 'tempe', 'food', 50, 175, 10, 8, 12],
+  ['Tahu goreng', 'tahu,tofu', 'food', 50, 115, 7, 3, 9],
+  ['Telur ceplok', 'fried egg,telur', 'food', 60, 110, 7, 0.5, 9],
+  ['Telur rebus', 'boiled egg', 'food', 55, 75, 6, 0.5, 5],
+  ['Roti tawar (2 lembar)', 'bread', 'food', 60, 160, 5, 30, 2],
+  ['Croissant', '', 'food', 60, 240, 5, 27, 12],
+  ['Donat', 'donut', 'food', 60, 250, 4, 30, 13],
+  ['Kue (1 potong)', 'cake', 'food', 80, 300, 4, 40, 14],
+  ['Pizza (1 slice)', '', 'food', 110, 290, 12, 33, 12],
+  ['Burger', '', 'food', 220, 540, 25, 40, 30],
+  ['Kentang goreng', 'french fries,fries', 'food', 115, 360, 4, 45, 17],
+  ['Steak', 'beef steak', 'food', 200, 500, 50, 0, 33],
+  ['Spaghetti bolognese', 'pasta', 'food', 350, 550, 25, 70, 18],
+  ['Ramen', '', 'food', 500, 550, 22, 70, 20],
+  ['Sushi (6 pcs)', '', 'food', 180, 300, 10, 55, 4],
+  ['Dimsum (4 pcs)', 'dim sum,siu mai', 'food', 120, 240, 10, 25, 11],
+  ['Salad', '', 'food', 200, 150, 4, 12, 10],
+  ['Pisang', 'banana', 'food', 100, 90, 1, 23, 0.3],
+  ['Apel', 'apple', 'food', 150, 80, 0.4, 21, 0.2],
+  ['Air mineral', 'water,aqua', 'drink', 600, 0, 0, 0, 0],
+  ['Es teh manis', 'sweet iced tea,teh', 'drink', 300, 120, 0, 30, 0],
+  ['Teh tawar', 'plain tea', 'drink', 250, 2, 0, 0, 0],
+  ['Teh botol', 'bottled tea', 'drink', 350, 120, 0, 30, 0],
+  ['Kopi hitam', 'black coffee,americano', 'drink', 200, 5, 0.3, 0, 0],
+  ['Kopi susu gula aren', 'es kopi susu,kopi susu', 'drink', 250, 200, 5, 30, 6],
+  ['Cafe latte', 'latte,cappuccino', 'drink', 250, 150, 8, 12, 8],
+  ['Susu', 'milk', 'drink', 250, 150, 8, 12, 8],
+  ['Jus jeruk', 'orange juice', 'drink', 250, 110, 2, 26, 0.5],
+  ['Jus alpukat', 'avocado juice', 'drink', 300, 320, 3, 35, 18],
+  ['Boba milk tea', 'bubble tea,boba', 'drink', 500, 450, 3, 80, 12],
+  ['Soda', 'cola,coke,sprite', 'drink', 330, 140, 0, 35, 0],
+  ['Es kelapa muda', 'coconut', 'drink', 300, 100, 1, 20, 1],
+  ['Keripik', 'chips', 'other', 30, 160, 2, 15, 10],
+  ['Cokelat', 'chocolate', 'other', 40, 210, 3, 24, 12],
+  ['Es krim', 'ice cream', 'other', 70, 140, 2, 16, 7],
+];
+
 const TAG_SEED: [string, string][] = [
   ['Work', '💼'], ['Study', '📚'], ['Family', '🏡'], ['Friends', '🧑‍🤝‍🧑'], ['Exercise', '🏃'], ['Outdoors', '🌳'],
   ['Rest', '😴'], ['Good food', '🍜'], ['Hobby', '🎨'], ['Travel', '🧳'], ['Date', '💞'], ['Sick', '🤒'],
@@ -301,6 +447,17 @@ async function setup(sql: Sql) {
   const [{ wc }] = await sql`select count(*)::int as wc from wallets`;
   if (wc === 0) await sql`insert into wallets (name, kind, emoji, is_default) values ('Cash', 'cash', '💵', true)`;
   await sql`insert into settings (key, value) values ('timezone', 'Asia/Jakarta'), ('period_start', '1') on conflict do nothing`;
+
+  const [{ fc }] = await sql`select count(*)::int as fc from food_items`;
+  if (fc === 0) {
+    // Starter list: approximate values per typical portion, converted to per 100 g.
+    for (const [name, aliases, kind, g, kcal, p, c, f] of FOOD_SEED) {
+      const k = 100 / g;
+      await sql`insert into food_items (name, aliases, kind, portion_g, kcal_100g, protein_100g, carbs_100g, fat_100g, source)
+        values (${name}, ${aliases}, ${kind}, ${g}, ${Math.round(kcal * k * 10) / 10}, ${Math.round(p * k * 10) / 10}, ${Math.round(c * k * 10) / 10}, ${Math.round(f * k * 10) / 10}, 'starter')`;
+    }
+  }
+  await sql`insert into settings (key, value) values ('food_goal_kcal', '2000'), ('stock_capital', '0'), ('stock_fee_buy', '0.15'), ('stock_fee_sell', '0.25'), ('stock_lot', '100') on conflict do nothing`;
 
   const [{ tc }] = await sql`select count(*)::int as tc from journal_tags`;
   if (tc === 0) {
@@ -369,8 +526,27 @@ export async function getSettings(sqlArg?: Sql): Promise<{ timezone: string; per
 }
 
 /** Secret values that never leave the server. */
+/** Plain settings for food goals and stock journal (not secret). */
+export async function getLifeSettings(sqlArg?: Sql) {
+  const sql = sqlArg ?? (await db());
+  const rows = await sql`select key, value from settings where key in ('food_goal_kcal','stock_capital','stock_fee_buy','stock_fee_sell','stock_lot')`;
+  const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return {
+    foodGoalKcal: Number(m.food_goal_kcal) || 2000,
+    stockCapital: Number(m.stock_capital) || 0,
+    feeBuy: Number(m.stock_fee_buy ?? 0.15),
+    feeSell: Number(m.stock_fee_sell ?? 0.25),
+    lot: Number(m.stock_lot) || 100,
+  };
+}
+
 export async function getSecretSetting(key: 'vapid_private' | 'vapid_public' | 'cron_key' | 'import_key', sqlArg?: Sql) {
   const sql = sqlArg ?? (await db());
   const [r] = await sql`select value from settings where key = ${key}`;
   return (r?.value as string) || '';
+}
+
+/** Second line of defence: every server action checks the login cookie itself too. Returns the user id. */
+export async function requireAuth() {
+  return currentUserId();
 }

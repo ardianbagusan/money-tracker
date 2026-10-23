@@ -6,9 +6,8 @@ import { useApp } from '@/components/AppContext';
 import { Sheet } from '@/components/Sheet';
 import { IChevR, ILogout, IPlus, IRepeat, ITrash } from '@/components/icons';
 import { archiveCategory, deleteRecurring, saveCategory, saveSetting, setRecurringActive, signOut } from '@/app/actions';
-import { rp } from '@/lib/format';
+import { ALL_COLORS, rp } from '@/lib/format';
 import { shortDate } from '@/lib/dates';
-import { ALL_COLORS } from '@/lib/palette';
 import type { Category, Recurring } from '@/lib/types';
 
 const ZONES = ['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura', 'Asia/Singapore', 'Asia/Kuala_Lumpur', 'Asia/Bangkok', 'Europe/Brussels', 'Europe/Amsterdam', 'Europe/London', 'UTC'];

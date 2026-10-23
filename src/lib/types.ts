@@ -121,3 +121,26 @@ export type EmailImport = {
   status: 'pending' | 'added' | 'dismissed' | 'unreadable';
   maybe_dup: boolean;
 };
+
+export type FoodKind = 'food' | 'drink' | 'other';
+export type FoodItem = {
+  id: number; name: string; aliases: string; kind: FoodKind; portion_g: number;
+  kcal_100g: number; protein_100g: number; carbs_100g: number; fat_100g: number; source: string; uses: number;
+};
+export type CutoutCanvas = { x: number; y: number; rot: number; scale: number; z: number };
+export type FoodEntry = {
+  id: number; moment_id: number; food_item_id: number | null; name: string; kind: FoodKind; grams: number | null;
+  kcal: number; protein_g: number; carbs_g: number; fat_g: number; tags: string[];
+  cutout: { id: number; width: number; height: number; canvas: CutoutCanvas } | null;
+};
+export type FoodMoment = {
+  id: number; occurred_at: string; place: string; people: string[]; rating: number | null; favorite: boolean; note: string;
+  entries: FoodEntry[];
+};
+
+export type TradeFill = { id: number; side: 'buy' | 'sell'; price: number; lots: number; fee: number; filled_at: string };
+export type Trade = {
+  id: number; ticker: string; status: 'open' | 'closed'; setup: string; timeframe: string; stop: number | null; target: number | null;
+  tags: string[]; context: string[]; emotion_entry: string; emotion_exit: string; rationale: string; review: string;
+  followed_plan: boolean | null; opened_at: string; closed_at: string | null; fills: TradeFill[];
+};

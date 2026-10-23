@@ -7,7 +7,7 @@ import { useApp, type SheetRequest } from './AppContext';
 import { ICamera, IPlus, IReceipt, ITrash, IX } from './icons';
 import { deleteTransactions, loadTransaction, saveTransaction, type TxPayload } from '@/app/actions';
 import { groupDigits, rp } from '@/lib/format';
-import { compressImage } from '@/lib/image';
+import { compressImage } from '@/lib/ocr';
 import { parseReceipt } from '@/lib/receipt';
 import { guessCategory } from '@/lib/parse';
 import type { Item, ItemKind, TxType } from '@/lib/types';
@@ -303,6 +303,21 @@ export function TxSheet({ request }: { request: SheetRequest }) {
             </label>
           )}
 
+          {type !== 'transfer' && (
+            <div className="field">
+              <span>{type === 'income' ? 'Into' : type === 'adjust' ? 'Wallet' : 'Paid from'}</span>
+              <div className="wallet-picks" role="radiogroup" aria-label="Wallet">
+                {wallets.filter((w) => !w.archived || w.id === walletId).map((w) => (
+                  <button type="button" key={w.id} role="radio" aria-checked={walletId === w.id} className="wallet-pick" onClick={() => setWalletId(w.id)}>
+                    <span aria-hidden className="e">{w.emoji}</span>
+                    <span className="n">{w.name}</span>
+                    <span className="b num">{rp(w.balance ?? 0)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {(type === 'expense' || type === 'income') && (
             <div className="field">
               <span>Category</span>
@@ -317,35 +332,33 @@ export function TxSheet({ request }: { request: SheetRequest }) {
             </div>
           )}
 
-          <div className="form-grid two">
-            <label className="field">
-              <span>{type === 'transfer' ? 'From wallet' : 'Wallet'}</span>
-              <select className="select" value={walletId} onChange={(e) => setWalletId(Number(e.target.value))}>
-                {wallets.filter((w) => !w.archived || w.id === walletId).map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.emoji} {w.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {type === 'transfer' ? (
+          {type === 'transfer' ? (
+            <div className="form-grid two">
+              <label className="field">
+                <span>From wallet</span>
+                <select className="select" value={walletId} onChange={(e) => setWalletId(Number(e.target.value))}>
+                  {wallets.filter((w) => !w.archived || w.id === walletId).map((w) => (
+                    <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>
+                  ))}
+                </select>
+              </label>
               <label className="field">
                 <span>To wallet</span>
                 <select className="select" value={toWalletId} onChange={(e) => setToWalletId(Number(e.target.value))}>
                   {wallets.filter((w) => (!w.archived || w.id === toWalletId) && w.id !== walletId).map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.emoji} {w.name}
-                    </option>
+                    <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>
                   ))}
                 </select>
               </label>
-            ) : (
+            </div>
+          ) : (
+            <>
               <label className="field">
                 <span>Date and time</span>
                 <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
               </label>
-            )}
-          </div>
+            </>
+          )}
           {type === 'transfer' && (
             <label className="field">
               <span>Date and time</span>
@@ -402,7 +415,7 @@ export function TxSheet({ request }: { request: SheetRequest }) {
                   {photo.action === 'set' && photo.preview ? (
                     <ReceiptThumb src={photo.preview} onRemove={() => setPhoto({ action: hadPhoto ? 'remove' : 'keep' })} />
                   ) : hadPhoto && photo.action === 'keep' && id ? (
-                    <ReceiptThumb src={`/api/receipt/${id}`} onRemove={() => setPhoto({ action: 'remove' })} />
+                    <ReceiptThumb src={`/api/image/receipt/${id}`} onRemove={() => setPhoto({ action: 'remove' })} />
                   ) : (
                     <button type="button" className="btn" onClick={() => fileRef.current?.click()} style={{ width: '100%' }}>
                       <ICamera /> {photo.action === 'remove' ? 'Photo will be removed. Add another' : 'Add photo'}

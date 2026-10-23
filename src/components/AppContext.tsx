@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { CalEvent, Category, JournalEntry, JournalTag, Sport, TxType, Wallet, Workout } from '@/lib/types';
+import type { CalEvent, FoodMoment, Category, JournalEntry, JournalTag, Sport, TxType, Wallet, Workout } from '@/lib/types';
 
 export type SheetRequest =
   | { kind: 'new'; type?: TxType; walletId?: number; title?: string }
@@ -9,7 +9,9 @@ export type SheetRequest =
   | { kind: 'chooser' }
   | { kind: 'journal'; entry?: JournalEntry; mood?: number; date?: string }
   | { kind: 'workout'; sport: Sport; workout?: Workout; date?: string }
-  | { kind: 'event'; event?: CalEvent; date?: string };
+  | { kind: 'event'; event?: CalEvent; date?: string }
+  | { kind: 'meal'; moment?: FoodMoment; date?: string }
+  | { kind: 'trade'; tradeId?: number; close?: boolean };
 
 type Ctx = {
   userName: string;

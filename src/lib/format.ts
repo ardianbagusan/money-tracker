@@ -1,3 +1,5 @@
+
+
 // Rupiah formatting and parsing. Safe to use in both server and browser code.
 
 const nf = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
@@ -62,4 +64,20 @@ export function amountFromMatch(num: string, suffix?: string) {
   if (parts.length > 1 && parts.slice(1).every((p) => p.length === 3)) return Number(parts.join(''));
   if (parts.length === 2 && parts[1].length <= 2) return Math.round(Number(`${parts[0]}.${parts[1]}`));
   return Number(parts.join(''));
+}
+
+// Chart colours. Checked for colour-blind separation and contrast on the navy
+// surface (#14284f). Categories pick from this list; gray is for "Other".
+export const CHART_COLORS = ['#d95926', '#3987e5', '#199e70', '#c98500', '#d55181', '#9085e9', '#e66767', '#2fa6b8'];
+export const OTHER_COLOR = '#8396bb';
+export const ALL_COLORS = [...CHART_COLORS, OTHER_COLOR];
+
+export type Slice = { id: number | string; label: string; emoji?: string; value: number; color: string; href?: string };
+
+/** Keeps the biggest 7 slices and folds the rest into "Other", so colours never repeat side by side. */
+export function foldSlices(slices: Slice[], keep = 7): Slice[] {
+  const sorted = [...slices].sort((a, b) => b.value - a.value);
+  if (sorted.length <= keep + 1) return sorted;
+  const rest = sorted.slice(keep);
+  return [...sorted.slice(0, keep), { id: 'other', label: `${rest.length} more`, value: rest.reduce((s, x) => s + x.value, 0), color: OTHER_COLOR }];
 }

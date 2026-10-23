@@ -6,8 +6,7 @@ import { Sheet } from './Sheet';
 import { useApp } from './AppContext';
 import { IBell, IBook, IRun, ISwap, ITennis, ITrash } from './icons';
 import { deleteEvent, deleteJournal, deleteWorkout, saveEvent, saveJournal, saveWorkout } from '@/app/life-actions';
-import { ENERGY, MOODS } from '@/lib/mood';
-import { EFFORT, fmtPace, pace } from '@/lib/sport';
+import { EFFORT, ENERGY, MOODS, fmtPace, pace } from '@/lib/life';
 import type { CalEvent, Energy, JournalEntry, Repeat, Sport, Workout } from '@/lib/types';
 
 type Res = { ok: boolean; error?: string };
@@ -38,6 +37,8 @@ export function ChooserSheet() {
     { label: 'Expense', sub: 'Money out', emoji: '💸', go: () => openSheet({ kind: 'new', type: 'expense' }) },
     { label: 'Income', sub: 'Money in', emoji: '💰', go: () => openSheet({ kind: 'new', type: 'income' }) },
     { label: 'Transfer', sub: 'Between wallets', icon: <ISwap />, go: () => openSheet({ kind: 'new', type: 'transfer' }) },
+    { label: 'Meal', sub: 'Photo, calories', emoji: '🍜', go: () => openSheet({ kind: 'meal' }) },
+    { label: 'Trade', sub: 'Stock buy or sell', emoji: '📈', go: () => openSheet({ kind: 'trade' }) },
     { label: 'Journal', sub: 'Mood and your day', icon: <IBook />, go: () => openSheet({ kind: 'journal' }) },
     { label: 'Run', sub: 'Time, distance, effort', icon: <IRun />, go: () => openSheet({ kind: 'workout', sport: 'running' }) },
     { label: 'Tennis', sub: 'Singles or doubles', icon: <ITennis />, go: () => openSheet({ kind: 'workout', sport: 'tennis' }) },
@@ -336,4 +337,3 @@ export function EventSheet({ event, date }: { event?: CalEvent; date?: string })
     </Sheet>
   );
 }
-

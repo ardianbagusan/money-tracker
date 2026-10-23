@@ -62,3 +62,5 @@ export const ITennis = emoji('🎾');
 export const IPulse = emoji('💓');
 export const IMoney = emoji('💰');
 export const IMail = emoji('📬');
+export const IFood = emoji('🍜');
+export const IStocks = emoji('📈');

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getBase, getWorkouts } from '@/lib/data';
 import { addDays, shortDate } from '@/lib/dates';
-import { fmtDuration, fmtHours, fmtPace, km, pace } from '@/lib/sport';
+import { fmtDuration, fmtHours, fmtPace, km, pace } from '@/lib/life';
 import { SectionTabs } from '@/components/AppShell';
 import { OpenSheet, WorkoutRow } from '@/components/LifeBits';
 import { IRun, ITennis } from '@/components/icons';

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getBase } from '@/lib/data';
-import { requireAuth } from '@/lib/auth';
-import { currentUser } from '@/lib/db';
+import { currentUser, requireAuth } from '@/lib/db';
 import { AppProvider } from '@/components/AppContext';
 import { AppShell } from '@/components/AppShell';
 

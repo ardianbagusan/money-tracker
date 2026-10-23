@@ -45,6 +45,10 @@ export async function POST(req: Request) {
   const { timezone } = await getSettings(sql);
   const categories = await sql<Category[]>`select * from categories where not archived`;
   const wallets = await sql<Wallet[]>`select * from wallets where not archived order by is_default desc, id`;
+  // Where email transactions go when the sender doesn't name a wallet: the one picked in
+  // Settings, else your first bank account, else your default wallet.
+  const [pref] = await sql`select value from settings where key = 'import_wallet'`;
+  const emailWallet = wallets.find((w) => w.id === Number(pref?.value)) ?? wallets.find((w) => w.kind === 'bank') ?? wallets[0] ?? null;
   const res = { ok: true, received: list.length, drafts: 0, unreadable: 0, skipped: 0, duplicates: 0 };
 
   for (const e of list) {
@@ -65,7 +69,7 @@ export async function POST(req: Request) {
       if (row.length) res.unreadable++;
     } else {
       const src = g.source.toLowerCase();
-      const wallet = (src && wallets.find((w) => w.name.toLowerCase().includes(src) || src.includes(w.name.toLowerCase()))) || null;
+      const wallet = (src && wallets.find((w) => w.name.toLowerCase().includes(src) || src.includes(w.name.toLowerCase()))) || emailWallet;
       // The merchant name says most; the subject and sender only if the merchant gives nothing.
       const cat = ((g.merchant && guessCategory(g.merchant, categories, g.type)) || guessCategory(`${e.subject} ${g.source}`, categories, g.type))
         ?? categories.find((c) => c.kind === g.type && /^other/i.test(c.name)) ?? null;

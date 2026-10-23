@@ -1,12 +1,12 @@
+import { timingSafeEqual } from 'crypto';
+import { activeUsers, clientFor, ensureSchema, getSecretSetting, getSettings, type Sql } from '@/lib/db';
+import { addMinutes, nowLocal, occurrences, shortDate } from '@/lib/dates';
+import { sendToAll } from '@/lib/push';
+import type { CalEvent } from '@/lib/types';
+
 // Called every minute by a free outside scheduler (cron-job.org), because
 // Vercel's free plan can only run scheduled jobs once a day.
 // One link serves everyone: it sends due alerts for each person from their own database.
-import { timingSafeEqual } from 'crypto';
-import { activeUsers, clientFor, ensureSchema, getSecretSetting, getSettings, type Sql } from '@/lib/db';
-import { nowLocal, shortDate } from '@/lib/dates';
-import { addMinutes, occurrences } from '@/lib/recur';
-import { sendToAll } from '@/lib/push';
-import type { CalEvent } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 

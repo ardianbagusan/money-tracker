@@ -8,7 +8,7 @@ A private web app I built to track my own money in rupiah, and to keep a journal
 
 ## Why I built it
 
-This is a personal project for my own use. I wanted a money tracker that fits how I actually spend and live: Indonesian rupiah, quick typing like `parkir 40rb`, and bank or e-wallet emails turned into drafts. I studied how an existing money-tracking app works (Oyenza), decided which features mattered to me, and rebuilt them as my own tool. I then added things I wanted that the original did not have.
+This is a personal project for my own use. I wanted a money tracker that fits how I actually spend and live: Indonesian rupiah, quick typing like `parkir 40rb`, and bank or e-wallet emails turned into drafts. I studied how an existing money-tracking app works, decided which features mattered to me, and rebuilt them as my own tool. I then added things I wanted that the original did not have.
 
 I'm sharing it as an example of what I can build and ship on my own: I defined the problem, designed the features, deployed it, and use it every day. The goal was a tool that is clear and easy to use, not just one that works.
 

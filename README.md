@@ -2,7 +2,9 @@
 
 A private web app I built to track my own money in rupiah, and to keep a journal of mood, sports, food and trades in the same place. It works on phone and desktop, is deployed on Vercel, and is locked behind a password.
 
-**Live demo:** not public, because it holds personal data. [Add screenshots or a short demo video here.]
+**Live demo:** not public, because it holds personal data.
+<img width="932" height="488" alt="image" src="https://github.com/user-attachments/assets/cf3fce4c-f056-41de-a2b1-e2234fbcb540" />
+
 
 ## Why I built it
 
@@ -27,19 +29,6 @@ I'm sharing it as an example of what I can build and ship on my own: I defined t
 - Stock journal: trades, partial exits, win rate, profit factor, expectancy, max drawdown, equity curve
 - Calendar with reminders and push notifications
 
-## How it is built
-
-| Part | Choice |
-|---|---|
-| App | TypeScript web app (React, server actions), installable as a PWA |
-| Database | Postgres on Neon (serverless, free tier) |
-| Hosting | Vercel (Hobby plan) |
-| Auth | Single password, signed session cookie, rate limiting after 5 failed attempts |
-| OCR | Tesseract, running client-side |
-| Image cutout | MediaPipe interactive segmentation, running client-side |
-| Alerts | Web Push with a service worker, triggered by an external cron ping |
-| Email import | Google Apps Script posting to an API route |
-
 ### Design decisions
 
 - **Privacy first.** Every page, data request and save checks a signed login cookie. Receipt OCR and food cutouts run on the device, so photos are not sent to a third-party service. The site is also marked `noindex`.
@@ -47,54 +36,7 @@ I'm sharing it as an example of what I can build and ship on my own: I defined t
 - **Free-tier architecture.** The app runs on free tiers, so I kept the server region next to the database and used an external cron service for per-minute reminders, because Vercel's free plan only allows daily cron jobs.
 - **Multi-user separation.** The password decides which database opens, so each user's data is fully separate.
 
-### Project structure
-
-```
-src/proxy.ts              login check in front of every request
-src/app/(app)/            screens: overview, history, reports, budgets, wallets, settings,
-                          journal, sports, calendar, food, stocks
-src/app/actions.ts        all saves, edits and deletes (each re-checks the login)
-src/lib/db.ts             database connection, tables, starter categories
-src/lib/parse.ts          quick-entry rules
-src/lib/email-parse.ts    bank and e-wallet email parsing
-src/lib/receipt.ts, ocr.ts  receipt reading
-src/lib/cutout.ts         dish cutouts
-src/lib/stocks.ts         stock P&L and statistics
-src/lib/push.ts           push alerts
-src/app/api/              cron reminders, email import endpoint
-```
-
-## Run it locally
-
-Needs Node.js 20 or newer and a Postgres database (a Neon branch works well).
-
-```bash
-npm install
-cp .env.example .env.local     # fill in the values below
-LOCAL_HTTP=1 npm run dev       # LOCAL_HTTP lets the login cookie work over http://localhost
-```
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Postgres connection string |
-| `APP_PASSWORD` | Password to open the app |
-| `SESSION_SECRET` | Random 64+ character string used to sign the login cookie |
-
-Tables and starter categories are created automatically on first sign-in.
-
-## Deploy
-
-1. Push the repo to GitHub.
-2. Import it in Vercel and set `APP_PASSWORD` and `SESSION_SECRET`.
-3. Add a Neon Postgres database from Vercel's Storage tab, then redeploy.
-
-## Known limitations
-
-- Email import only catches payments that actually send an email, and the parsing rules were written without real samples from every bank.
-- The starter calorie values are rough averages I wrote myself, not an official food table.
-- Stock prices are typed by hand; nothing is fetched from the market.
-- Push notification delivery depends on the browser or OS push service and is not guaranteed to the second.
 
 ## About me
 
-Satria, based in Hasselt, Belgium. [One line on your background that fits this application. Add your LinkedIn / GitHub / email.]
+Ardian, based in Indonesia. Communication and Marketing enthusiast
